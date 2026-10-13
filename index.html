@@ -1,584 +1,654 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WCSU Campus Football Tournament Auction</title>
+    <title>WCSU Football Auction Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: { 500: '#3b82f6', 600: '#2563eb' },
+                        dark: { 700: '#334155', 800: '#1e293b', 900: '#0f172a' }
+                    }
+                }
+            }
+        }
+    </script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Teko:wght@400;600;700&family=Inter:wght@300;400;600;800&display=swap');
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
         
-        body {
-            background-color: #0f172a; /* Slate 900 */
-            color: #f8fafc; /* Slate 50 */
-            font-family: 'Inter', sans-serif;
-        }
-
-        .heading-font { font-family: 'Teko', sans-serif; }
-        
-        /* 16:9 Aspect Ratio Container for Projector */
-        .live-container {
-            max-width: 100vw;
-            max-height: 100vh;
-            aspect-ratio: 16/9;
-            margin: 0 auto;
-            background: radial-gradient(circle at center, #1e293b 0%, #020617 100%);
-            border: 2px solid #334155;
-            box-shadow: 0 0 30px rgba(0,0,0,0.8);
-            position: relative;
-            overflow: hidden;
-        }
-
-        /* Fade out older bids */
-        .bid-history-item:nth-child(1) { opacity: 1; font-weight: bold; font-size: 1.1rem; color: #4ade80;}
-        .bid-history-item:nth-child(2) { opacity: 0.8; }
-        .bid-history-item:nth-child(3) { opacity: 0.6; }
-        .bid-history-item:nth-child(4) { opacity: 0.4; }
-        .bid-history-item:nth-child(n+5) { opacity: 0; display: none; }
-
-        .team-card { background: rgba(30, 41, 59, 0.7); }
+        /* Fading live history */
+        .fade-old:nth-child(1) { opacity: 1; transform: scale(1); }
+        .fade-old:nth-child(2) { opacity: 0.7; transform: scale(0.95); }
+        .fade-old:nth-child(3) { opacity: 0.4; transform: scale(0.9); }
+        .fade-old:nth-child(4) { opacity: 0.2; transform: scale(0.85); }
+        .fade-old:nth-child(n+5) { display: none; }
     </style>
 </head>
-<body class="min-h-screen flex flex-col">
+<body class="bg-dark-900 text-gray-100 min-h-screen font-sans selection:bg-brand-500 selection:text-white">
 
-    <!-- STARTUP SCREEN -->
-    <div id="startup-screen" class="flex-1 flex flex-col items-center justify-center p-4">
-        <h1 class="heading-font text-6xl text-blue-400 mb-2 text-center">WCSU CAMPUS FOOTBALL TOURNAMENT</h1>
-        <p class="text-xl text-gray-400 mb-10 text-center uppercase tracking-widest">Live Auction Software</p>
-        
-        <div class="flex flex-col sm:flex-row gap-6">
-            <button onclick="startApp('admin')" class="px-8 py-4 bg-blue-600 hover:bg-blue-500 rounded-lg text-2xl font-bold transition shadow-lg shadow-blue-500/20">
-                Launch Admin Dashboard
-            </button>
-            <button onclick="startApp('live')" class="px-8 py-4 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-2xl font-bold transition shadow-lg shadow-emerald-500/20">
-                Launch Live Screen
-            </button>
-        </div>
-    </div>
-
-    <!-- ADMIN DASHBOARD -->
-    <div id="admin-screen" class="hidden flex-1 flex flex-col p-4">
-        <header class="flex justify-between items-center bg-slate-800 p-4 rounded-lg mb-6 shadow-md border border-slate-700">
-            <h1 class="heading-font text-3xl text-blue-400 tracking-wide">WCSU Admin Dashboard</h1>
-            <div class="flex gap-4 items-center">
-                <span id="sync-status" class="text-sm font-bold text-green-400">Connected to Sheets 🟢</span>
-                <button onclick="location.reload()" class="bg-gray-600 hover:bg-gray-500 px-3 py-1 rounded text-sm">Exit</button>
-            </div>
-        </header>
-
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1">
-            <!-- AUCTION CONTROLS -->
-            <div class="lg:col-span-1 bg-slate-800 p-5 rounded-lg border border-slate-700 h-fit">
-                <h2 class="text-xl font-bold mb-4 text-slate-300">New Auction</h2>
-                
-                <input type="text" id="admin-player-name" placeholder="Player Name..." class="w-full bg-slate-900 border border-slate-600 rounded p-3 mb-3 text-white focus:outline-none focus:border-blue-500">
-                
-                <select id="admin-category" class="w-full bg-slate-900 border border-slate-600 rounded p-3 mb-4 text-white focus:outline-none">
-                    <option value="A">Category A (Base: 50CR)</option>
-                    <option value="B">Category B (Base: 30CR)</option>
-                    <option value="C">Category C (Base: 10CR)</option>
-                </select>
-
-                <button onclick="initiateAuction()" class="w-full bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-3 rounded mb-6">BRING TO AUCTION</button>
-
-                <hr class="border-slate-600 mb-6">
-
-                <h2 class="text-xl font-bold mb-4 text-slate-300">Live Bidding</h2>
-                <div class="flex justify-between items-center mb-4 bg-slate-900 p-3 rounded border border-slate-700">
-                    <div>
-                        <p class="text-sm text-gray-400">Current Player</p>
-                        <p id="admin-active-player" class="font-bold text-lg text-blue-300">Waiting...</p>
-                    </div>
-                    <div class="text-right">
-                        <p class="text-sm text-gray-400">Current Bid</p>
-                        <p id="admin-active-bid" class="font-bold text-2xl text-green-400">0 CR</p>
-                    </div>
-                </div>
-
-                <div class="mb-4">
-                    <label class="text-sm text-gray-400 mb-2 block">Place Bid For:</label>
-                    <select id="admin-bid-team" class="w-full bg-slate-900 border border-slate-600 rounded p-2 mb-2 text-white">
-                        <!-- Populated by JS -->
-                    </select>
-                </div>
-
-                <div class="grid grid-cols-3 gap-2 mb-6">
-                    <button onclick="placeBid(5)" class="bg-blue-600/80 hover:bg-blue-500 py-2 rounded font-bold">+5 CR</button>
-                    <button onclick="placeBid(10)" class="bg-blue-600 hover:bg-blue-500 py-2 rounded font-bold">+10 CR</button>
-                    <button onclick="placeBid(20)" class="bg-blue-700 hover:bg-blue-600 py-2 rounded font-bold">+20 CR</button>
-                </div>
-
-                <button onclick="confirmSell()" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded text-xl shadow-[0_0_15px_rgba(34,197,94,0.4)]">
-                    SELL PLAYER
+    <!-- Mode Selector -->
+    <div id="mode-selector" class="fixed inset-0 z-50 flex items-center justify-center bg-dark-900 px-4">
+        <div class="text-center w-full max-w-2xl">
+            <h1 class="text-3xl md:text-5xl font-bold mb-4 text-brand-500">WCSU Football Auction</h1>
+            <p class="text-gray-400 mb-8 text-sm md:text-base">Select your screen mode</p>
+            <div class="flex flex-col md:flex-row gap-4 justify-center">
+                <button onclick="setMode('admin')" class="w-full md:w-auto px-8 py-4 bg-brand-600 hover:bg-brand-500 rounded-xl font-bold text-lg transition shadow-lg shadow-brand-500/30 flex items-center justify-center gap-2">
+                    <i class="fas fa-gavel"></i> Admin Dashboard
+                </button>
+                <button onclick="setMode('live')" class="w-full md:w-auto px-8 py-4 bg-dark-800 hover:bg-gray-700 border border-gray-600 rounded-xl font-bold text-lg transition shadow-lg flex items-center justify-center gap-2">
+                    <i class="fas fa-tv"></i> Live Screen (Projector)
                 </button>
             </div>
-
-            <!-- TEAM SUMMARY -->
-            <div class="lg:col-span-2 flex flex-col h-[80vh]">
-                <h2 class="text-2xl font-bold mb-4 text-slate-300">Teams Summary & Rosters</h2>
-                <div id="admin-teams-container" class="grid grid-cols-1 md:grid-cols-2 gap-4 overflow-y-auto pr-2 pb-10">
-                    <!-- Cards populated via JS -->
-                </div>
-            </div>
         </div>
     </div>
 
-    <!-- LIVE SCREEN -->
-    <div id="live-screen" class="hidden w-full h-screen bg-black flex items-center justify-center p-4">
-        <div class="live-container w-full flex flex-col">
-            <!-- Header -->
-            <header class="h-20 border-b border-slate-700 flex justify-between items-center px-8 bg-slate-900/80">
-                <h1 class="heading-font text-4xl text-blue-400 tracking-wider">WCSU FOOTBALL TOURNAMENT</h1>
-                <div class="bg-red-600 text-white px-4 py-1 rounded text-sm font-bold animate-pulse">LIVE AUCTION</div>
-            </header>
-
-            <!-- Main Content Area -->
-            <div class="flex-1 flex flex-row">
-                <!-- Auction Stage -->
-                <div class="flex-1 flex flex-col items-center justify-center p-8 relative">
-                    
-                    <!-- Player Info -->
-                    <div class="text-center mb-8">
-                        <p class="text-gray-400 uppercase tracking-widest text-lg mb-2">On The Block</p>
-                        <h2 id="live-player-name" class="heading-font text-8xl text-white drop-shadow-lg leading-none mb-2">Awaiting Player</h2>
-                        <span id="live-category-badge" class="bg-slate-700 border border-slate-500 px-6 py-2 rounded-full text-xl font-bold text-yellow-400 hidden">
-                            CATEGORY A
-                        </span>
-                    </div>
-
-                    <!-- Bid Status -->
-                    <div class="bg-slate-800/80 border-2 border-slate-600 rounded-3xl p-10 w-full max-w-2xl text-center shadow-2xl relative overflow-hidden">
-                        <div class="absolute inset-0 bg-blue-500/10 hidden" id="live-bid-flash"></div>
-                        <p class="text-gray-400 uppercase tracking-widest mb-2 z-10 relative">Highest Bid</p>
-                        <div id="live-highest-bid" class="heading-font text-9xl text-green-400 drop-shadow-[0_0_15px_rgba(74,222,128,0.3)] z-10 relative">
-                            0<span class="text-5xl text-green-600"> CR</span>
-                        </div>
-                        <p id="live-highest-team" class="text-3xl text-blue-300 font-bold mt-4 z-10 relative uppercase tracking-wider">--</p>
-                    </div>
-
-                </div>
-
-                <!-- Sidebar / Standings / History -->
-                <div class="w-1/3 border-l border-slate-700 bg-slate-900/50 flex flex-col p-6">
-                    
-                    <!-- Bid History -->
-                    <div class="h-1/3 mb-6 flex flex-col">
-                        <h3 class="heading-font text-3xl text-gray-400 border-b border-slate-700 pb-2 mb-4">Live Bids</h3>
-                        <div id="live-bid-history" class="flex-1 flex flex-col gap-3 font-mono">
-                            <!-- Bids populated dynamically -->
-                            <div class="text-gray-500 italic">No bids yet</div>
-                        </div>
-                    </div>
-
-                    <!-- Remaining Budgets -->
-                    <div class="flex-1 flex flex-col">
-                        <h3 class="heading-font text-3xl text-gray-400 border-b border-slate-700 pb-2 mb-4">Remaining Budgets</h3>
-                        <div id="live-budgets" class="flex-1 overflow-hidden flex flex-col gap-2">
-                            <!-- Budget items populated dynamically -->
-                        </div>
-                    </div>
-
-                </div>
+    <!-- Top Navigation (Admin Only) -->
+    <nav id="navbar" class="hidden bg-dark-800 border-b border-gray-700 p-3 md:p-4 sticky top-0 z-40">
+        <div class="max-w-[1400px] mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-2 md:gap-3">
+                <div class="bg-brand-500 p-1.5 md:p-2 rounded-lg text-sm md:text-base"><i class="fas fa-futbol text-white"></i></div>
+                <h1 class="text-lg md:text-xl font-bold">WCSU Auction</h1>
+            </div>
+            <div class="flex items-center gap-4">
+                <div id="sync-status" class="text-xs md:text-sm text-gray-400"><i class="fas fa-cloud mr-1"></i> Waiting...</div>
             </div>
         </div>
-    </div>
+    </nav>
 
-    <!-- CUSTOM MODAL SYSTEM -->
-    <div id="custom-modal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-[100] backdrop-blur-sm">
-        <div class="bg-slate-800 border border-slate-600 p-8 rounded-xl w-full max-w-md shadow-2xl">
-            <h3 id="modal-title" class="text-2xl font-bold mb-2 text-white">Title</h3>
-            <p id="modal-desc" class="text-slate-400 mb-6">Description</p>
+    <!-- ADMIN DASHBOARD -->
+    <main class="p-3 md:p-6 max-w-[1400px] mx-auto hidden" id="admin-view">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6">
             
-            <input type="number" id="modal-input" class="hidden w-full bg-slate-900 border border-slate-600 rounded p-3 mb-6 text-white text-lg font-bold" />
-            
-            <div class="flex justify-end gap-3">
-                <button id="modal-cancel" class="bg-slate-600 hover:bg-slate-500 px-6 py-2 rounded font-bold text-white transition">Cancel</button>
-                <button id="modal-confirm" class="bg-blue-600 hover:bg-blue-500 px-6 py-2 rounded font-bold text-white transition">Confirm</button>
+            <!-- Left Column: Start & History -->
+            <div class="lg:col-span-4 xl:col-span-3 flex flex-col gap-4 md:gap-6">
+                <div class="bg-dark-800 p-4 md:p-6 rounded-2xl border border-gray-700 shadow-xl">
+                    <h2 class="text-lg font-bold mb-4 border-b border-gray-700 pb-2">Start Auction</h2>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-xs md:text-sm text-gray-400 mb-1">Player Name</label>
+                            <input type="text" id="new-player-name" class="w-full bg-dark-900 border border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-brand-500 outline-none text-sm" placeholder="e.g. Lionel Messi">
+                        </div>
+                        <div>
+                            <label class="block text-xs md:text-sm text-gray-400 mb-1">Category & Base Rate</label>
+                            <select id="new-player-category" class="w-full bg-dark-900 border border-gray-600 rounded-lg px-3 py-2 outline-none text-sm">
+                                <option value="A|50">Category A (50 CR)</option>
+                                <option value="B|30">Category B (30 CR)</option>
+                                <option value="C|10">Category C (10 CR)</option>
+                            </select>
+                        </div>
+                        <button onclick="startAuction()" class="w-full bg-brand-600 hover:bg-brand-500 py-3 rounded-lg font-bold transition shadow-lg text-sm">Bring to Hammer</button>
+                    </div>
+                </div>
+
+                <div class="bg-dark-800 p-4 md:p-6 rounded-2xl border border-gray-700 shadow-xl flex-1 flex flex-col min-h-[300px]">
+                    <h2 class="text-lg font-bold mb-3 border-b border-gray-700 pb-2">Recent Deals</h2>
+                    <div id="deals-list" class="space-y-2 overflow-y-auto flex-1 pr-1">
+                        <!-- Deals populated here -->
+                    </div>
+                </div>
             </div>
+
+            <!-- Right Column: Active Arena & Summaries -->
+            <div class="lg:col-span-8 xl:col-span-9 flex flex-col gap-4 md:gap-6">
+                
+                <!-- Bidding Arena -->
+                <div class="bg-dark-800 p-4 md:p-6 rounded-2xl border border-gray-700 shadow-xl relative min-h-[400px] flex flex-col">
+                    <div id="no-active-auction" class="absolute inset-0 flex flex-col items-center justify-center text-gray-500">
+                        <i class="fas fa-gavel text-4xl md:text-5xl mb-3 opacity-50"></i>
+                        <p class="text-base md:text-lg">No active auction.</p>
+                        <p class="text-xs md:text-sm">Bring a player to the hammer to start bidding.</p>
+                    </div>
+
+                    <div id="active-auction" class="hidden flex-1 flex flex-col">
+                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-gray-700 pb-4 mb-4 gap-4">
+                            <div>
+                                <span id="active-cat" class="bg-brand-500 text-[10px] md:text-xs px-2 py-1 rounded font-bold uppercase tracking-wider mb-2 inline-block">Cat A</span>
+                                <h2 id="active-name" class="text-2xl md:text-4xl font-bold text-white leading-tight">Player Name</h2>
+                                <p class="text-gray-400 mt-1 text-xs md:text-sm">Base Price: <span id="active-base" class="text-white font-bold">50</span> CR</p>
+                            </div>
+                            <div class="w-full md:w-auto text-left md:text-right bg-dark-900 p-3 md:p-4 rounded-xl border border-gray-700">
+                                <p class="text-gray-400 text-xs uppercase tracking-widest font-bold mb-1">Current Highest</p>
+                                <h3 id="active-bid" class="text-3xl md:text-5xl font-black text-green-400">50 CR</h3>
+                                <p id="active-bidder" class="text-sm md:text-lg font-bold text-gray-300 mt-1 truncate max-w-[200px]">None</p>
+                            </div>
+                        </div>
+
+                        <!-- NEW: Advanced Bidding Controls -->
+                        <div class="bg-dark-900 p-3 md:p-4 rounded-xl border border-gray-700 mb-4 flex flex-col xl:flex-row gap-4 items-start xl:items-center justify-between">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <span class="text-xs md:text-sm text-gray-400 font-bold uppercase tracking-wider mr-2">Quick Raise:</span>
+                                <button onclick="setRaise(1)" id="btn-raise-1" class="raise-btn bg-gray-700 px-3 py-1.5 rounded-lg text-sm font-bold transition">+1</button>
+                                <button onclick="setRaise(2)" id="btn-raise-2" class="raise-btn bg-gray-700 px-3 py-1.5 rounded-lg text-sm font-bold transition">+2</button>
+                                <button onclick="setRaise(5)" id="btn-raise-5" class="raise-btn bg-brand-600 text-white px-3 py-1.5 rounded-lg text-sm font-bold transition shadow-lg shadow-brand-500/20">+5</button>
+                                <button onclick="setRaise(10)" id="btn-raise-10" class="raise-btn bg-gray-700 px-3 py-1.5 rounded-lg text-sm font-bold transition">+10</button>
+                                <button onclick="setRaise(20)" id="btn-raise-20" class="raise-btn bg-gray-700 px-3 py-1.5 rounded-lg text-sm font-bold transition">+20</button>
+                            </div>
+                            <div class="flex items-center gap-2 w-full xl:w-auto">
+                                <span class="text-xs md:text-sm text-gray-400 font-bold uppercase tracking-wider whitespace-nowrap">Direct Bid:</span>
+                                <input type="number" id="direct-bid-amt" class="w-full xl:w-28 bg-dark-800 border border-gray-600 rounded-lg px-3 py-1.5 text-white font-bold outline-none focus:border-brand-500" placeholder="Exact CR">
+                            </div>
+                        </div>
+                        
+                        <p class="text-xs text-gray-500 mb-3"><i class="fas fa-info-circle"></i> Click a team to apply the selected raise OR the direct bid amount.</p>
+                        
+                        <!-- Team Buttons -->
+                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 md:gap-3 mb-6" id="bidding-buttons">
+                            <!-- Team buttons dynamically injected here -->
+                        </div>
+
+                        <div class="flex gap-3 mt-auto pt-4 border-t border-gray-700 justify-end">
+                            <button onclick="cancelAuction()" class="bg-red-900/40 hover:bg-red-600 text-red-200 px-4 md:px-6 py-2 rounded-lg font-bold transition text-sm md:text-base">Cancel</button>
+                            <button onclick="sellPlayer()" class="bg-green-600 hover:bg-green-500 px-6 md:px-10 py-2 rounded-lg font-bold text-sm md:text-lg transition shadow-lg shadow-green-500/30">SOLD!</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Teams Summary -->
+                <div class="bg-dark-800 p-4 md:p-6 rounded-2xl border border-gray-700 shadow-xl">
+                    <h2 class="text-lg font-bold mb-4 border-b border-gray-700 pb-2 flex justify-between items-center">
+                        <span>Teams Overview</span>
+                        <span class="text-xs text-gray-400 font-normal">Initial Budget: 600 CR</span>
+                    </h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 md:gap-4 max-h-[400px] overflow-y-auto pr-2" id="teams-summary">
+                        <!-- Teams summary populated here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- LIVE SCREEN DASHBOARD -->
+    <main id="live-view" class="hidden w-screen h-screen overflow-hidden bg-dark-900 text-white p-4">
+        <div class="w-full h-full grid grid-cols-12 gap-6 relative">
+            
+            <!-- Left Sidebar: Teams & Budgets -->
+            <div class="col-span-3 bg-dark-800 border border-gray-700 rounded-3xl p-6 flex flex-col shadow-2xl relative overflow-hidden">
+                <div class="absolute -right-10 -top-10 opacity-[0.03]"><i class="fas fa-wallet text-[200px]"></i></div>
+                <h2 class="text-xl font-black uppercase tracking-widest text-brand-500 mb-6 border-b border-gray-700 pb-4 relative z-10">Team Purses</h2>
+                <div class="flex-1 overflow-hidden relative z-10 flex flex-col gap-3" id="live-teams-list">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+
+            <!-- Center Arena: Active Auction -->
+            <div class="col-span-6 bg-gradient-to-br from-dark-800 to-dark-900 border border-gray-700 rounded-3xl shadow-2xl p-8 flex flex-col items-center justify-center relative overflow-hidden">
+                <div class="absolute inset-0 flex items-center justify-center opacity-[0.02] pointer-events-none">
+                    <i class="fas fa-futbol text-[400px]"></i>
+                </div>
+
+                <!-- Idle State -->
+                <div id="live-idle" class="text-center z-10 transition-all duration-500">
+                    <h1 class="text-6xl font-black text-gray-600 mb-4 tracking-tight">WCSU AUCTION</h1>
+                    <p class="text-2xl text-gray-500">Waiting for next player...</p>
+                </div>
+
+                <!-- Active State -->
+                <div id="live-active" class="hidden z-10 w-full h-full flex flex-col justify-between">
+                    <div class="text-center mt-2">
+                        <span id="live-cat" class="bg-brand-500 text-lg px-5 py-1.5 rounded-full font-bold uppercase tracking-widest shadow-lg">Cat A</span>
+                        <h1 id="live-name" class="text-6xl xl:text-7xl font-black text-white mt-4 mb-2 tracking-tight">Player Name</h1>
+                        <p class="text-2xl text-gray-400 font-medium">Base: <span id="live-base" class="text-white font-bold">50</span> CR</p>
+                    </div>
+
+                    <div class="text-center my-auto p-8 xl:p-12 bg-dark-900/80 rounded-[2rem] border border-gray-700 backdrop-blur-sm shadow-2xl w-[90%] mx-auto">
+                        <p class="text-gray-400 text-xl font-bold tracking-widest uppercase mb-2">Current Bid</p>
+                        <h2 id="live-bid" class="text-[7rem] xl:text-[9rem] leading-none font-black text-green-400 drop-shadow-[0_0_25px_rgba(74,222,128,0.3)]">50 CR</h2>
+                        <div class="mt-6 inline-block bg-gray-800 border-2 border-gray-600 px-8 py-3 rounded-2xl shadow-inner max-w-full">
+                            <span class="text-3xl font-bold text-white uppercase tracking-wider truncate block" id="live-bidder">Team Name</span>
+                        </div>
+                    </div>
+
+                    <div class="text-center h-28 relative overflow-hidden">
+                        <p class="text-xs text-gray-500 uppercase tracking-widest mb-2 font-bold">Action Tracker</p>
+                        <div id="live-history" class="flex flex-col items-center gap-1.5 transition-all duration-300">
+                            <!-- Fading bids -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sold Overlay -->
+                <div id="live-sold-overlay" class="absolute inset-0 bg-green-900/95 backdrop-blur-xl z-50 hidden flex-col items-center justify-center">
+                    <h1 class="text-[8rem] font-black text-white italic drop-shadow-2xl transform -rotate-12 mb-8 border-[10px] border-white px-10 py-2">SOLD!</h1>
+                    <h2 id="live-sold-details" class="text-5xl font-bold text-green-100 mt-4 text-center leading-tight">To Team<br>for 100 CR</h2>
+                </div>
+            </div>
+
+            <!-- Right Sidebar: Recent Deals -->
+            <div class="col-span-3 bg-dark-800 border border-gray-700 rounded-3xl p-6 flex flex-col shadow-2xl relative overflow-hidden">
+                <div class="absolute -right-10 -bottom-10 opacity-[0.03]"><i class="fas fa-handshake text-[200px]"></i></div>
+                <h2 class="text-xl font-black uppercase tracking-widest text-green-500 mb-6 border-b border-gray-700 pb-4 relative z-10">Recent Signings</h2>
+                <div class="flex-1 overflow-hidden relative z-10 flex flex-col gap-3" id="live-deals-list">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Custom Modal -->
+    <div id="custom-modal" class="fixed inset-0 bg-black/80 z-[100] hidden items-center justify-center backdrop-blur-sm p-4">
+        <div class="bg-dark-800 p-6 md:p-8 rounded-2xl max-w-md w-full border border-gray-700 shadow-2xl transform transition-all scale-95 opacity-0" id="modal-content">
+            <h3 id="modal-title" class="text-xl md:text-2xl font-bold mb-2">Title</h3>
+            <p id="modal-desc" class="text-sm md:text-base text-gray-400 mb-6">Description goes here.</p>
+            <div id="modal-input-container" class="hidden mb-6">
+                <input type="number" id="modal-input" class="w-full bg-dark-900 border border-gray-600 rounded-lg px-4 py-3 text-lg outline-none focus:border-brand-500 text-white placeholder-gray-600">
+            </div>
+            <div class="flex justify-end gap-3" id="modal-buttons"></div>
         </div>
     </div>
 
-
+    <!-- Application Logic -->
     <script>
-        // --- CONFIGURATION ---
-        const GOOGLE_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbys61rq3vpjhHxeTEdK0xUzqADWsj2qD4JmMYNgl0agutAPQXey2xOpKcdJcHhocn8c/exec";
-        let isLiveMode = false;
-        
-        // Base Rates
-        const BASE_RATES = { "A": 50, "B": 30, "C": 10 };
-        
-        // Default State Structure
-        let defaultState = {
-            auctionActive: false,
-            currentPlayer: "",
-            currentCategory: "A",
-            currentBid: 0,
-            leadingTeam: "",
-            history: [],
-            teams: {
-                "Liverpool": { name: "Liverpool", category: "Senior", budget: 600, players: [] },
-                "PSG": { name: "PSG", category: "Senior", budget: 600, players: [] },
-                "Juventus": { name: "Juventus", category: "Senior", budget: 600, players: [] },
-                "AC_Milan": { name: "AC Milan", category: "Senior", budget: 600, players: [] },
-                "Inter_Milan": { name: "Inter Milan", category: "Junior", budget: 600, players: [] },
-                "Barcelona": { name: "Barcelona", category: "Junior", budget: 600, players: [] },
-                "Real_Madrid": { name: "Real Madrid", category: "Junior", budget: 600, players: [] },
-                "Man_City": { name: "Man City", category: "Junior", budget: 600, players: [] },
-                "Man_United": { name: "Man United", category: "Junior", budget: 600, players: [] },
-                "Chelsea": { name: "Chelsea", category: "Junior", budget: 600, players: [] }
-            }
-        };
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbys61rq3vpjhHxeTEdK0xUzqADWsj2qD4JmMYNgl0agutAPQXey2xOpKcdJcHhocn8c/exec";
 
-        // App State
-        let appState = JSON.parse(JSON.stringify(defaultState));
+        const defaultTeams = [
+            { id: 'liv', name: 'Liverpool', group: 'Senior', budget: 600, players: [] },
+            { id: 'psg', name: 'PSG', group: 'Senior', budget: 600, players: [] },
+            { id: 'juv', name: 'Juventus', group: 'Senior', budget: 600, players: [] },
+            { id: 'acm', name: 'AC Milan', group: 'Senior', budget: 600, players: [] },
+            { id: 'int', name: 'Inter Milan', group: 'Junior', budget: 600, players: [] },
+            { id: 'bar', name: 'Barcelona', group: 'Junior', budget: 600, players: [] },
+            { id: 'rma', name: 'Real Madrid', group: 'Junior', budget: 600, players: [] },
+            { id: 'mci', name: 'Man City', group: 'Junior', budget: 600, players: [] },
+            { id: 'mun', name: 'Man United', group: 'Junior', budget: 600, players: [] },
+            { id: 'che', name: 'Chelsea', group: 'Junior', budget: 600, players: [] }
+        ];
 
-        // --- CLOUD SYNC ENGINE ---
-        
+        let state = { teams: defaultTeams, deals: [], auction: null };
+        let appMode = null;
+        let syncStatusEl = document.getElementById('sync-status');
+        let pollingInterval = null;
+        let lastDealsCount = 0;
+        let currentRaise = 5; // Global raise state
+
+        // --- Network & State ---
         async function pushToCloud() {
-            if(isLiveMode) return; // Only Admin modifies cloud data
-            document.getElementById('sync-status').innerText = "Syncing... 🟡";
+            if (appMode !== 'admin') return;
+            syncStatusEl.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Syncing...';
+            syncStatusEl.className = "text-xs md:text-sm text-yellow-400";
             try {
-                // Using no-cors so browser doesn't block the POST request to Google.
-                await fetch(GOOGLE_WEB_APP_URL, {
+                await fetch(GAS_URL, {
                     method: 'POST',
-                    mode: 'no-cors',
-                    body: JSON.stringify(appState),
-                    headers: { 'Content-Type': 'text/plain' }
+                    body: JSON.stringify(state),
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    redirect: 'follow'
                 });
-                document.getElementById('sync-status').innerText = "Saved to Cloud 🟢";
-            } catch(e) {
-                console.error("Cloud push failed:", e);
-                document.getElementById('sync-status').innerText = "Sync Failed 🔴";
+                syncStatusEl.innerHTML = '<i class="fas fa-cloud-check mr-1"></i> Synced';
+                syncStatusEl.className = "text-xs md:text-sm text-green-400";
+            } catch (e) {
+                console.error(e);
+                syncStatusEl.innerHTML = '<i class="fas fa-exclamation-triangle mr-1"></i> Sync Error';
+                syncStatusEl.className = "text-xs md:text-sm text-red-400";
             }
-            // Save to local storage as backup
-            localStorage.setItem("wcsu_auction_state", JSON.stringify(appState));
         }
 
         async function pullFromCloud() {
             try {
-                const response = await fetch(GOOGLE_WEB_APP_URL);
-                const data = await response.json();
-                
-                // If there's valid data from cloud, overwrite local state
-                if (data && data.teams) {
-                    appState = data;
-                    if(isLiveMode) {
-                        renderLiveScreen();
-                    } else {
-                        renderAdminUI();
-                    }
+                const res = await fetch(GAS_URL);
+                const data = await res.json();
+                if (data && data.teams && JSON.stringify(data) !== JSON.stringify(state)) {
+                    state = data;
+                    render();
                 }
-            } catch(e) {
-                console.error("Cloud pull failed:", e);
-            }
+            } catch (e) { console.error(e); }
         }
 
-        // --- APP INITIALIZATION ---
-
-        function startApp(mode) {
-            document.getElementById('startup-screen').classList.add('hidden');
+        function setMode(mode) {
+            appMode = mode;
+            document.getElementById('mode-selector').classList.add('hidden');
             
-            // Check local backup just in case
-            const backup = localStorage.getItem("wcsu_auction_state");
-            if(backup) {
-                appState = JSON.parse(backup);
-            }
-
             if (mode === 'admin') {
-                isLiveMode = false;
-                document.getElementById('admin-screen').classList.remove('hidden');
-                document.getElementById('admin-screen').classList.add('flex');
-                
-                // Do one initial pull to sync up before starting Admin
+                document.getElementById('navbar').classList.remove('hidden');
+                document.getElementById('admin-view').classList.remove('hidden');
+                document.getElementById('admin-view').classList.add('block');
+                syncStatusEl.innerHTML = '<i class="fas fa-sync fa-spin mr-1"></i> Loading...';
                 pullFromCloud().then(() => {
-                    populateTeamDropdowns();
-                    renderAdminUI();
+                    syncStatusEl.innerHTML = '<i class="fas fa-cloud-check mr-1"></i> Connected';
+                    syncStatusEl.className = "text-xs md:text-sm text-green-400";
+                    render();
                 });
-                
             } else {
-                isLiveMode = true;
-                document.getElementById('live-screen').classList.remove('hidden');
-                
-                // Live mode continuously checks for updates
+                document.getElementById('live-view').classList.remove('hidden');
                 pullFromCloud();
-                setInterval(pullFromCloud, 2000); 
+                pollingInterval = setInterval(pullFromCloud, 2500);
             }
         }
 
-        // --- ADMIN CONTROLS ---
+        // --- Bidding UI Controls ---
+        function setRaise(amt) {
+            currentRaise = amt;
+            // Update UI buttons
+            document.querySelectorAll('.raise-btn').forEach(btn => {
+                btn.classList.remove('bg-brand-600', 'text-white', 'shadow-lg', 'shadow-brand-500/20');
+                btn.classList.add('bg-gray-700');
+            });
+            const activeBtn = document.getElementById(`btn-raise-${amt}`);
+            if (activeBtn) {
+                activeBtn.classList.remove('bg-gray-700');
+                activeBtn.classList.add('bg-brand-600', 'text-white', 'shadow-lg', 'shadow-brand-500/20');
+            }
+            renderAdmin(); // Re-render team buttons to show correct math
+        }
 
-        function initiateAuction() {
-            const name = document.getElementById('admin-player-name').value.trim();
-            const cat = document.getElementById('admin-category').value;
-            if(!name) return showModal("Error", "Please enter a player name.");
-
-            appState.auctionActive = true;
-            appState.currentPlayer = name;
-            appState.currentCategory = cat;
-            appState.currentBid = BASE_RATES[cat];
-            appState.leadingTeam = "BASE PRICE";
-            appState.history = [{ team: "Starting Price", amount: BASE_RATES[cat] }];
-            
-            document.getElementById('admin-player-name').value = ''; // clear input
-            
-            renderAdminUI();
+        function updateState() {
+            render();
             pushToCloud();
         }
 
-        function placeBid(increment) {
-            if(!appState.auctionActive) return showModal("Notice", "Bring a player to auction first.");
-            
-            const teamKey = document.getElementById('admin-bid-team').value;
-            const newAmount = appState.currentBid + increment;
-            const teamName = appState.teams[teamKey].name;
+        // --- Render System ---
+        function render() {
+            if (appMode === 'admin') renderAdmin();
+            else renderLive();
+        }
 
-            // Check if team has enough budget
-            if (appState.teams[teamKey].budget < newAmount) {
-                return showModal("Insufficient Funds", `${teamName} only has ${appState.teams[teamKey].budget} CR left.`);
+        function renderAdmin() {
+            const activeDiv = document.getElementById('active-auction');
+            const idleDiv = document.getElementById('no-active-auction');
+            const btnContainer = document.getElementById('bidding-buttons');
+            const directBidInput = document.getElementById('direct-bid-amt');
+
+            if (state.auction) {
+                idleDiv.classList.add('hidden');
+                activeDiv.classList.remove('hidden');
+                
+                document.getElementById('active-name').innerText = state.auction.name;
+                document.getElementById('active-cat').innerText = `Category ${state.auction.cat}`;
+                document.getElementById('active-base').innerText = state.auction.base;
+                document.getElementById('active-bid').innerText = `${state.auction.bid} CR`;
+                
+                let bidderName = state.auction.bidder ? state.teams.find(t => t.id === state.auction.bidder).name : 'No Bids Yet';
+                document.getElementById('active-bidder').innerText = bidderName;
+
+                // Determine dynamic bid display per button
+                btnContainer.innerHTML = state.teams.map(team => {
+                    const isBaseBid = state.auction.bidder === null;
+                    const nextStandardBid = isBaseBid ? state.auction.base : state.auction.bid + currentRaise;
+                    const isCurrentBidder = state.auction.bidder === team.id;
+                    const canAfford = team.budget >= nextStandardBid; // Simplified check, actual direct bid might exceed
+                    
+                    if (isCurrentBidder) {
+                        return `<button disabled class="p-2 rounded-lg bg-green-900/30 border border-green-600 text-green-400 font-bold opacity-70 text-xs md:text-sm h-14 md:h-16 flex flex-col items-center justify-center leading-tight">
+                                    Highest<br><span class="text-[10px] md:text-xs font-normal truncate w-full px-1">${team.name}</span>
+                                </button>`;
+                    }
+                    
+                    return `<button onclick="placeBid('${team.id}')" 
+                                class="p-2 rounded-lg font-bold text-xs md:text-sm transition border h-14 md:h-16 flex flex-col items-center justify-center leading-tight
+                                bg-dark-700 hover:bg-brand-600 border-gray-600 relative overflow-hidden group">
+                                <span class="truncate w-full px-1">${team.name}</span>
+                                <span class="text-[10px] md:text-xs font-normal mt-0.5 opacity-75">${team.budget} CR left</span>
+                                <div class="absolute inset-0 bg-brand-600 flex flex-col items-center justify-center translate-y-full group-hover:translate-y-0 transition-transform duration-200">
+                                    <span class="text-xs text-white/70">Bid</span>
+                                    <span class="text-sm text-white font-black">${isBaseBid ? 'Base' : '+' + currentRaise}</span>
+                                </div>
+                            </button>`;
+                }).join('');
+            } else {
+                idleDiv.classList.remove('hidden');
+                activeDiv.classList.add('hidden');
             }
 
-            appState.currentBid = newAmount;
-            appState.leadingTeam = teamName;
-            
-            // Add to history (push to top)
-            appState.history.unshift({ team: teamName, amount: newAmount });
-            if(appState.history.length > 5) appState.history.pop(); // Keep only last 5
+            // Summaries
+            document.getElementById('teams-summary').innerHTML = state.teams.map(team => `
+                <div class="bg-dark-900 p-3 md:p-4 rounded-xl border border-gray-700 hover:border-gray-500 transition flex flex-col h-full">
+                    <div class="flex justify-between items-start mb-2 border-b border-gray-800 pb-2">
+                        <div class="truncate pr-2">
+                            <h3 class="font-bold text-sm md:text-base text-white truncate">${team.name}</h3>
+                            <p class="text-[10px] text-brand-400 uppercase tracking-wider">${team.group}</p>
+                        </div>
+                        <div class="text-right shrink-0">
+                            <p class="text-green-400 font-black text-lg md:text-xl leading-none">${team.budget} <span class="text-[10px] font-normal text-gray-400">CR</span></p>
+                            <button onclick="editBudget('${team.id}')" class="text-[10px] text-gray-500 hover:text-white underline mt-1 block w-full text-right"><i class="fas fa-edit"></i> Edit</button>
+                        </div>
+                    </div>
+                    <div class="flex flex-col gap-1 overflow-y-auto flex-1">
+                        ${team.players.length === 0 ? '<span class="text-[10px] text-gray-600 italic">No players</span>' : 
+                          team.players.map(p => `
+                            <div class="flex justify-between text-[10px] md:text-xs bg-dark-800 px-2 py-1 rounded text-gray-300">
+                                <span class="truncate pr-2">${p.name} <span class="text-gray-500 hidden sm:inline">(Cat ${p.cat})</span></span>
+                                <span class="font-bold text-white shrink-0">${p.price} CR</span>
+                            </div>
+                          `).join('')}
+                    </div>
+                </div>
+            `).join('');
 
-            renderAdminUI();
-            pushToCloud();
+            // Deals List
+            document.getElementById('deals-list').innerHTML = state.deals.slice().reverse().map(deal => {
+                const teamName = state.teams.find(t => t.id === deal.teamId).name;
+                return `
+                <div class="flex justify-between items-center bg-dark-900 p-2 md:p-3 rounded-lg border border-gray-700">
+                    <div class="truncate pr-2">
+                        <p class="font-bold text-white text-sm truncate">${deal.player}</p>
+                        <p class="text-[10px] md:text-xs text-green-400 font-medium truncate">To ${teamName} / ${deal.price} CR</p>
+                    </div>
+                    <button onclick="undoDeal('${deal.id}')" class="shrink-0 text-red-400 hover:bg-red-900/40 px-2 py-1 rounded border border-red-900/50 text-[10px] font-bold">
+                        Undo
+                    </button>
+                </div>`;
+            }).join('') || '<div class="text-center text-gray-600 mt-4"><p class="text-xs">No deals yet.</p></div>';
         }
 
-        function confirmSell() {
-            if(!appState.auctionActive) return;
-            if(appState.leadingTeam === "BASE PRICE") return showModal("Error", "No bids placed yet.");
+        function renderLive() {
+            const activeDiv = document.getElementById('live-active');
+            const idleDiv = document.getElementById('live-idle');
+            const soldOverlay = document.getElementById('live-sold-overlay');
 
-            // Find team key based on team name
-            const teamKey = Object.keys(appState.teams).find(k => appState.teams[k].name === appState.leadingTeam);
+            // Left Sidebar: Teams
+            document.getElementById('live-teams-list').innerHTML = state.teams.map(team => `
+                <div class="flex justify-between items-center bg-dark-900/50 p-3 rounded-xl border border-gray-700/50 backdrop-blur-sm">
+                    <div>
+                        <p class="text-sm font-bold text-white uppercase">${team.name}</p>
+                        <p class="text-[10px] text-brand-400 uppercase tracking-widest">${team.group}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-xl font-black text-green-400">${team.budget}</p>
+                        <p class="text-[9px] text-gray-500 uppercase font-bold tracking-wider">CR Left</p>
+                    </div>
+                </div>
+            `).join('');
 
-            showModal("Confirm Sale", `Sell ${appState.currentPlayer} to ${appState.leadingTeam} for ${appState.currentBid} CR?`, false, () => {
-                // Execute Sale
-                const team = appState.teams[teamKey];
-                team.budget -= appState.currentBid;
+            // Right Sidebar: Deals
+            document.getElementById('live-deals-list').innerHTML = state.deals.slice(-9).reverse().map(deal => {
+                const teamName = state.teams.find(t => t.id === deal.teamId).name;
+                return `
+                <div class="bg-dark-900/50 p-3 rounded-xl border border-gray-700/50 backdrop-blur-sm">
+                    <p class="text-base font-bold text-white truncate">${deal.player}</p>
+                    <div class="flex justify-between mt-1 items-end">
+                        <p class="text-xs text-gray-400 uppercase font-bold">${teamName}</p>
+                        <p class="text-sm font-black text-green-400">${deal.price} CR</p>
+                    </div>
+                </div>`;
+            }).join('') || '<div class="text-center text-gray-600 mt-10"><i class="fas fa-history text-4xl mb-4 opacity-20"></i><p class="text-sm uppercase tracking-widest">Awaiting First Deal</p></div>';
+
+            // Center: Auction
+            if (state.auction) {
+                idleDiv.classList.add('hidden');
+                activeDiv.classList.remove('hidden');
                 
-                const playerRecord = {
-                    id: Date.now().toString(),
-                    name: appState.currentPlayer,
-                    category: appState.currentCategory,
-                    price: appState.currentBid
-                };
+                document.getElementById('live-name').innerText = state.auction.name;
+                document.getElementById('live-cat').innerText = `Category ${state.auction.cat}`;
+                document.getElementById('live-base').innerText = state.auction.base;
+                document.getElementById('live-bid').innerText = `${state.auction.bid} CR`;
                 
-                team.players.push(playerRecord);
+                if (state.auction.bidder) {
+                    const tName = state.teams.find(t => t.id === state.auction.bidder).name;
+                    document.getElementById('live-bidder').innerText = tName;
+                    document.getElementById('live-bidder').parentElement.classList.remove('hidden');
+                } else {
+                    document.getElementById('live-bidder').parentElement.classList.add('hidden');
+                }
 
-                // Reset Auction state
-                appState.auctionActive = false;
-                appState.currentPlayer = "";
-                appState.history = [];
+                document.getElementById('live-history').innerHTML = state.auction.history.slice().reverse().map(h => {
+                    const tName = state.teams.find(t => t.id === h.bidder).name;
+                    return `<div class="fade-old text-gray-300 font-bold text-lg bg-dark-900/80 px-6 py-1.5 rounded-full border border-gray-700/50 shadow-lg">${tName} bid ${h.amount} CR</div>`;
+                }).join('');
+            } else {
+                activeDiv.classList.add('hidden');
+                idleDiv.classList.remove('hidden');
+            }
 
-                renderAdminUI();
-                pushToCloud();
+            // Sold Animation
+            if (state.deals.length > lastDealsCount) {
+                const latestDeal = state.deals[state.deals.length - 1];
+                const tName = state.teams.find(t => t.id === latestDeal.teamId).name;
+                document.getElementById('live-sold-details').innerHTML = `To ${tName}<br>for ${latestDeal.price} CR`;
+                soldOverlay.classList.remove('hidden');
+                soldOverlay.classList.add('flex');
+                setTimeout(() => {
+                    soldOverlay.classList.add('hidden');
+                    soldOverlay.classList.remove('flex');
+                }, 5000); 
+                lastDealsCount = state.deals.length;
+            } else if (state.deals.length < lastDealsCount) {
+                lastDealsCount = state.deals.length;
+            }
+        }
+
+        // --- Core Actions ---
+        function startAuction() {
+            const nameInput = document.getElementById('new-player-name');
+            const name = nameInput.value.trim();
+            const catVal = document.getElementById('new-player-category').value.split('|');
+            
+            if (!name) return customAlert('Missing Info', 'Enter a player name.');
+            if (state.auction) return customAlert('Blocked', 'An auction is already active.');
+            
+            state.auction = {
+                name: name,
+                cat: catVal[0],
+                base: parseInt(catVal[1]),
+                bid: parseInt(catVal[1]),
+                bidder: null,
+                history: []
+            };
+            
+            nameInput.value = '';
+            document.getElementById('direct-bid-amt').value = '';
+            updateState();
+        }
+
+        function placeBid(teamId) {
+            const team = state.teams.find(t => t.id === teamId);
+            const directBidInput = document.getElementById('direct-bid-amt');
+            const directVal = parseInt(directBidInput.value);
+            
+            let newBid;
+            
+            if (!isNaN(directVal) && directVal > 0) {
+                // Direct bid processing
+                if (state.auction.bidder !== null && directVal <= state.auction.bid) {
+                    return customAlert('Invalid Bid', `Direct bid must be higher than current ${state.auction.bid} CR.`);
+                }
+                if (state.auction.bidder === null && directVal < state.auction.base) {
+                    return customAlert('Invalid Bid', `Direct bid must be at least base price (${state.auction.base} CR).`);
+                }
+                newBid = directVal;
+                directBidInput.value = ''; // Clear after applying
+            } else {
+                // Standard quick-raise processing
+                newBid = state.auction.bidder === null ? state.auction.base : state.auction.bid + currentRaise;
+            }
+            
+            if (team.budget < newBid) {
+                return customAlert('Insufficient Funds', `${team.name} only has ${team.budget} CR remaining.`);
+            }
+
+            state.auction.bid = newBid;
+            state.auction.bidder = teamId;
+            state.auction.history.push({ bidder: teamId, amount: newBid });
+            updateState();
+        }
+
+        function cancelAuction() {
+            if (!state.auction) return;
+            customConfirm('Cancel Auction', 'Are you sure? All active bids will be lost.', () => {
+                state.auction = null;
+                updateState();
             });
         }
 
-        // --- EDITING TOOLS ---
+        function sellPlayer() {
+            if (!state.auction || !state.auction.bidder) return customAlert('Cannot Sell', 'No valid bids placed yet.');
+            const team = state.teams.find(t => t.id === state.auction.bidder);
+            customConfirm('Confirm Sale', `Sell ${state.auction.name} to ${team.name} for ${state.auction.bid} CR?`, () => {
+                team.budget -= state.auction.bid;
+                team.players.push({ name: state.auction.name, price: state.auction.bid, cat: state.auction.cat });
+                state.deals.push({ id: Date.now().toString(), player: state.auction.name, teamId: team.id, price: state.auction.bid, cat: state.auction.cat });
+                state.auction = null;
+                document.getElementById('direct-bid-amt').value = '';
+                updateState();
+            });
+        }
 
-        function editBudgetPrompt(teamKey) {
-            const team = appState.teams[teamKey];
-            showModal("Edit Budget", `Enter new budget for ${team.name} (Current: ${team.budget} CR):`, true, (newVal) => {
-                if(newVal && !isNaN(newVal)) {
-                    team.budget = parseInt(newVal);
-                    renderAdminUI();
-                    pushToCloud();
+        function undoDeal(dealId) {
+            customConfirm('Undo Sale', 'Revert this sale? Player removed and funds returned.', () => {
+                const dealIndex = state.deals.findIndex(d => d.id === dealId);
+                if (dealIndex > -1) {
+                    const deal = state.deals[dealIndex];
+                    const team = state.teams.find(t => t.id === deal.teamId);
+                    team.budget += deal.price;
+                    team.players = team.players.filter(p => p.name !== deal.player);
+                    state.deals.splice(dealIndex, 1);
+                    updateState();
                 }
             });
         }
 
-        function undoDealConfirm(teamKey, playerId) {
-            const team = appState.teams[teamKey];
-            const playerIndex = team.players.findIndex(p => p.id === playerId);
-            if(playerIndex === -1) return;
-            
-            const player = team.players[playerIndex];
-
-            showModal("Undo Deal", `Are you sure you want to remove ${player.name} and refund ${player.price} CR to ${team.name}?`, false, () => {
-                team.budget += player.price;
-                team.players.splice(playerIndex, 1);
-                renderAdminUI();
-                pushToCloud();
+        function editBudget(teamId) {
+            const team = state.teams.find(t => t.id === teamId);
+            customPrompt(`Edit Budget: ${team.name}`, 'Enter new budget balance:', team.budget, (newVal) => {
+                const amount = parseInt(newVal);
+                if (!isNaN(amount) && amount >= 0) {
+                    team.budget = amount;
+                    updateState();
+                } else {
+                    customAlert('Invalid', 'Enter a valid positive number.');
+                }
             });
         }
 
+        // --- Custom Modal System ---
+        const modal = document.getElementById('custom-modal'), mContent = document.getElementById('modal-content'), mTitle = document.getElementById('modal-title'), mDesc = document.getElementById('modal-desc'), mInputContainer = document.getElementById('modal-input-container'), mInput = document.getElementById('modal-input'), mBtns = document.getElementById('modal-buttons');
 
-        // --- RENDERING ---
-
-        function populateTeamDropdowns() {
-            const select = document.getElementById('admin-bid-team');
-            select.innerHTML = '';
-            
-            // Add Senoir Teams
-            const optgroupSenior = document.createElement('optgroup');
-            optgroupSenior.label = "SENIOR TEAMS";
-            Object.keys(appState.teams).filter(k => appState.teams[k].category === "Senior").forEach(k => {
-                let opt = document.createElement('option');
-                opt.value = k;
-                opt.text = appState.teams[k].name;
-                optgroupSenior.appendChild(opt);
-            });
-            select.appendChild(optgroupSenior);
-
-            // Add Junior Teams
-            const optgroupJunior = document.createElement('optgroup');
-            optgroupJunior.label = "JUNIOR TEAMS";
-            Object.keys(appState.teams).filter(k => appState.teams[k].category === "Junior").forEach(k => {
-                let opt = document.createElement('option');
-                opt.value = k;
-                opt.text = appState.teams[k].name;
-                optgroupJunior.appendChild(opt);
-            });
-            select.appendChild(optgroupJunior);
+        function openModal() {
+            modal.classList.remove('hidden'); modal.classList.add('flex');
+            setTimeout(() => { mContent.classList.remove('scale-95', 'opacity-0'); mContent.classList.add('scale-100', 'opacity-100'); }, 10);
         }
-
-        function renderAdminUI() {
-            // Update Active Panel
-            document.getElementById('admin-active-player').innerText = appState.auctionActive ? `${appState.currentPlayer} [Cat ${appState.currentCategory}]` : "Waiting...";
-            document.getElementById('admin-active-bid').innerText = appState.auctionActive ? `${appState.currentBid} CR (${appState.leadingTeam})` : "0 CR";
-
-            // Render Teams Summary Panel
-            const container = document.getElementById('admin-teams-container');
-            container.innerHTML = '';
-
-            Object.keys(appState.teams).forEach(key => {
-                const team = appState.teams[key];
-                
-                // Color coding based on Junior/Senior
-                const badgeColor = team.category === "Senior" ? "bg-purple-600" : "bg-teal-600";
-                
-                let playersHtml = team.players.length === 0 
-                    ? `<p class="text-slate-500 text-sm italic py-2">No players yet</p>` 
-                    : team.players.map(p => `
-                        <div class="flex justify-between items-center bg-slate-900/50 p-2 rounded mb-1 border border-slate-700/50 text-sm">
-                            <span class="text-slate-300"><b>[${p.category}]</b> ${p.name}</span>
-                            <div class="flex items-center gap-3">
-                                <span class="text-green-400 font-bold">${p.price} CR</span>
-                                <button onclick="undoDealConfirm('${key}', '${p.id}')" class="text-red-400 hover:text-red-300" title="Undo Deal">✖</button>
-                            </div>
-                        </div>
-                    `).join("");
-
-                let card = `
-                    <div class="team-card p-4 rounded-lg border border-slate-700 flex flex-col shadow-lg">
-                        <div class="flex justify-between items-center mb-3 border-b border-slate-600 pb-2">
-                            <div>
-                                <h3 class="text-xl font-bold text-white tracking-wide">${team.name}</h3>
-                                <span class="text-[10px] uppercase tracking-widest ${badgeColor} px-2 py-0.5 rounded text-white">${team.category}</span>
-                            </div>
-                            <div class="text-right cursor-pointer group" onclick="editBudgetPrompt('${key}')">
-                                <p class="text-[11px] text-gray-400 uppercase tracking-widest group-hover:text-blue-300 transition">Budget <span class="text-blue-400 ml-1">✎</span></p>
-                                <p class="text-2xl font-black text-green-400">${team.budget}</p>
-                            </div>
-                        </div>
-                        <div class="flex-1 overflow-y-auto max-h-40 pr-1">
-                            ${playersHtml}
-                        </div>
-                    </div>
-                `;
-                container.innerHTML += card;
-            });
-        }
-
-        function renderLiveScreen() {
-            // Flash effect if bid changes
-            const currentDisplayedBid = document.getElementById('live-highest-bid').innerText.replace(/[^0-9]/g, '');
-            if(appState.auctionActive && currentDisplayedBid != appState.currentBid) {
-                const flash = document.getElementById('live-bid-flash');
-                flash.classList.remove('hidden');
-                setTimeout(() => flash.classList.add('hidden'), 200);
-            }
-
-            // Central Auction Stage
-            if (appState.auctionActive) {
-                document.getElementById('live-player-name').innerText = appState.currentPlayer;
-                document.getElementById('live-category-badge').innerText = `CATEGORY ${appState.currentCategory}`;
-                document.getElementById('live-category-badge').classList.remove('hidden');
-                
-                document.getElementById('live-highest-bid').innerHTML = `${appState.currentBid}<span class="text-5xl text-green-600"> CR</span>`;
-                document.getElementById('live-highest-team').innerText = appState.leadingTeam;
-                document.getElementById('live-highest-team').className = appState.leadingTeam === "BASE PRICE" ? "text-2xl text-gray-400 font-bold mt-4 z-10 relative uppercase tracking-wider" : "text-4xl text-blue-300 font-black mt-4 z-10 relative uppercase tracking-wider drop-shadow-md";
-            } else {
-                document.getElementById('live-player-name').innerText = "WCSU AUCTION";
-                document.getElementById('live-category-badge').classList.add('hidden');
-                document.getElementById('live-highest-bid').innerHTML = `0<span class="text-5xl text-green-600"> CR</span>`;
-                document.getElementById('live-highest-team').innerText = "AWAITING PLAYER";
-                document.getElementById('live-highest-team').className = "text-2xl text-gray-400 font-bold mt-4 z-10 relative uppercase tracking-wider";
-            }
-
-            // Bid History
-            const histContainer = document.getElementById('live-bid-history');
-            if (!appState.auctionActive || appState.history.length === 0) {
-                histContainer.innerHTML = `<div class="text-gray-600 italic">No active bids</div>`;
-            } else {
-                histContainer.innerHTML = appState.history.map(h => 
-                    `<div class="bid-history-item flex justify-between items-center py-2 border-b border-slate-700/50">
-                        <span class="truncate pr-4">${h.team}</span>
-                        <span class="text-green-500 font-bold">${h.amount} CR</span>
-                    </div>`
-                ).join("");
-            }
-
-            // Budgets Sidebar (Sorted by Remaining Budget descending)
-            const budgetContainer = document.getElementById('live-budgets');
-            const sortedTeams = Object.values(appState.teams).sort((a, b) => b.budget - a.budget);
-            
-            budgetContainer.innerHTML = sortedTeams.map(team => {
-                const bgClass = team.category === "Senior" ? "bg-purple-900/20 border-purple-500/30" : "bg-teal-900/20 border-teal-500/30";
-                const dotColor = team.category === "Senior" ? "bg-purple-500" : "bg-teal-500";
-                
-                return `
-                <div class="flex justify-between items-center p-3 rounded-lg border ${bgClass}">
-                    <div class="flex items-center gap-2">
-                        <div class="w-2 h-2 rounded-full ${dotColor}"></div>
-                        <span class="text-white font-bold tracking-wide">${team.name}</span>
-                    </div>
-                    <span class="text-green-400 font-mono font-bold text-lg">${team.budget}</span>
-                </div>
-            `}).join("");
-        }
-
-
-        // --- MODAL SYSTEM ---
-
-        let currentModalCallback = null;
-
-        function showModal(title, desc, requireInput = false, callback = null) {
-            document.getElementById('modal-title').innerText = title;
-            document.getElementById('modal-desc').innerText = desc;
-            
-            const inputField = document.getElementById('modal-input');
-            if (requireInput) {
-                inputField.classList.remove('hidden');
-                inputField.value = '';
-                inputField.focus();
-            } else {
-                inputField.classList.add('hidden');
-            }
-
-            currentModalCallback = callback;
-            document.getElementById('custom-modal').classList.remove('hidden');
-        }
-
         function closeModal() {
-            document.getElementById('custom-modal').classList.add('hidden');
-            currentModalCallback = null;
+            mContent.classList.remove('scale-100', 'opacity-100'); mContent.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => { modal.classList.add('hidden'); modal.classList.remove('flex'); mInputContainer.classList.add('hidden'); }, 200);
         }
 
-        document.getElementById('modal-cancel').addEventListener('click', closeModal);
-        document.getElementById('modal-confirm').addEventListener('click', () => {
-            if (currentModalCallback) {
-                const inputVal = document.getElementById('modal-input').value;
-                currentModalCallback(inputVal);
-            }
-            closeModal();
-        });
+        function customAlert(title, text) {
+            mTitle.innerText = title; mDesc.innerText = text; mInputContainer.classList.add('hidden');
+            mBtns.innerHTML = `<button onclick="closeModal()" class="bg-brand-600 hover:bg-brand-500 px-6 py-2 rounded-lg font-bold">OK</button>`;
+            openModal();
+        }
 
+        function customConfirm(title, text, onConfirm) {
+            mTitle.innerText = title; mDesc.innerText = text; mInputContainer.classList.add('hidden');
+            window._modalConfirm = () => { closeModal(); onConfirm(); };
+            mBtns.innerHTML = `<button onclick="closeModal()" class="bg-gray-700 hover:bg-gray-600 px-6 py-2 rounded-lg font-bold text-sm">Cancel</button><button onclick="window._modalConfirm()" class="bg-brand-600 hover:bg-brand-500 px-6 py-2 rounded-lg font-bold text-sm">Confirm</button>`;
+            openModal();
+        }
+
+        function customPrompt(title, text, defaultValue, onConfirm) {
+            mTitle.innerText = title; mDesc.innerText = text;
+            mInputContainer.classList.remove('hidden'); mInput.value = defaultValue;
+            window._modalPromptSubmit = () => { const val = mInput.value; closeModal(); onConfirm(val); };
+            mBtns.innerHTML = `<button onclick="closeModal()" class="bg-gray-700 hover:bg-gray-600 px-6 py-2 rounded-lg font-bold text-sm">Cancel</button><button onclick="window._modalPromptSubmit()" class="bg-brand-600 hover:bg-brand-500 px-6 py-2 rounded-lg font-bold text-sm">Save</button>`;
+            openModal(); setTimeout(() => mInput.focus(), 100);
+        }
     </script>
 </body>
 </html>
