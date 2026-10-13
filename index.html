@@ -3,33 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WCSU Football Auction Pro (Cloud Sync)</title>
+    <title>WCSU Football Auction</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
+    
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #f8fafc; overflow-x: hidden; }
         
         /* Custom scrollbar */
-        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: #1e293b; }
         ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #3b82f6; }
         
-        /* Neon texts */
-        .neon-text-green { text-shadow: 0 0 10px rgba(34, 197, 94, 0.7), 0 0 20px rgba(34, 197, 94, 0.5); }
+        /* Neon text effects */
+        .neon-text-green { text-shadow: 0 0 10px rgba(34, 197, 94, 0.7), 0 0 20px rgba(34, 197, 94, 0.4); }
         .neon-text-blue { text-shadow: 0 0 10px rgba(59, 130, 246, 0.7); }
-        
+        .neon-text-yellow { text-shadow: 0 0 15px rgba(234, 179, 8, 0.6); }
+
         /* Animations */
-        @keyframes fadeInDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
-        .bid-item-new { animation: fadeInDown 0.4s ease-out forwards; }
+        @keyframes fadeInDown { from { opacity: 0; transform: translateY(-15px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fadeInDown 0.4s ease-out forwards; }
         
         @keyframes pulse-intense {
             0%, 100% { box-shadow: 0 0 20px rgba(234, 179, 8, 0.2); border-color: rgba(234,179,8,0.3); transform: scale(1); }
-            50% { box-shadow: 0 0 40px rgba(234, 179, 8, 0.6); border-color: rgba(234,179,8,1); transform: scale(1.02); }
+            50% { box-shadow: 0 0 40px rgba(234, 179, 8, 0.5); border-color: rgba(234,179,8,1); transform: scale(1.02); }
         }
         .winning-bidder-highlight { animation: pulse-intense 2s infinite ease-in-out; }
 
-        /* 16:9 Projector Screen Container */
+        @keyframes stamp {
+            0% { opacity: 0; transform: scale(3) rotate(-15deg); }
+            50% { opacity: 1; transform: scale(0.9) rotate(-15deg); }
+            100% { opacity: 1; transform: scale(1) rotate(-15deg); }
+        }
+        .animate-stamp { animation: stamp 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+
+        /* 16:9 Projector Screen Layout */
         .projector-screen {
             aspect-ratio: 16 / 9;
             width: 100vw;
@@ -41,6 +50,7 @@
             overflow: hidden;
             display: flex;
             flex-direction: column;
+            box-shadow: 0 0 50px rgba(0,0,0,0.8);
         }
 
         .screen-wrapper {
@@ -50,191 +60,251 @@
             height: 100vh;
             background-color: #000;
         }
-        
-        /* Loading Overlay */
-        #loader { transition: opacity 0.3s ease; }
     </style>
 </head>
-<body class="min-h-screen flex flex-col">
+<body class="min-h-screen flex flex-col selection:bg-blue-500/30">
 
-    <div id="customModal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-[100] p-4 backdrop-blur-sm">
-        <div class="bg-slate-900 border-2 border-slate-700 rounded-2xl max-w-sm w-full p-6 text-center shadow-2xl">
-            <h3 id="modalTitle" class="text-xl font-bold text-white mb-2">Notification</h3>
-            <p id="modalMessage" class="text-slate-400 mb-6"></p>
-            <input type="number" id="modalInput" class="hidden w-full bg-slate-950 border border-slate-600 rounded-lg px-4 py-3 text-white font-bold mb-6 focus:border-blue-500 outline-none text-center" placeholder="Enter amount...">
+    <!-- Custom Modal System (replaces alerts/prompts) -->
+    <div id="customModal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-[100] p-4 backdrop-blur-sm transition-opacity">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full p-6 text-center shadow-2xl animate-fade-in relative overflow-hidden">
+            <div id="modalHeaderColor" class="absolute top-0 left-0 right-0 h-1 bg-blue-500"></div>
+            <h3 id="modalTitle" class="text-2xl font-black text-white mb-2 tracking-wide">Notification</h3>
+            <p id="modalMessage" class="text-slate-400 mb-6 text-sm"></p>
+            
+            <input type="number" id="modalInput" class="hidden w-full bg-slate-950 border border-slate-600 rounded-lg px-4 py-3 text-white font-bold mb-6 focus:border-blue-500 outline-none text-center text-lg" placeholder="Enter amount...">
+            
             <div class="flex gap-4 justify-center" id="modalActions">
-                <button onclick="closeModal()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-6 rounded-lg">OK</button>
+                <!-- Buttons injected dynamically based on modal type -->
             </div>
         </div>
     </div>
 
-    <div id="loader" class="fixed inset-0 bg-slate-950 z-[90] flex flex-col items-center justify-center">
-        <div class="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-        <h2 class="text-xl font-bold text-slate-300 animate-pulse">Connecting to Cloud Server...</h2>
-        <p class="text-slate-500 mt-2 text-sm">Synchronizing auction data</p>
+    <!-- Loading Screen -->
+    <div id="loader" class="fixed inset-0 bg-slate-950 z-[90] flex flex-col items-center justify-center transition-opacity duration-300">
+        <div class="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4 shadow-[0_0_15px_rgba(59,130,246,0.5)]"></div>
+        <h2 class="text-xl font-bold text-slate-200 animate-pulse tracking-widest uppercase">Initializing System...</h2>
+        <p id="loaderText" class="text-slate-500 mt-2 text-sm">Connecting to Firebase Cloud</p>
     </div>
 
-    <div id="view-selector" class="flex-grow hidden flex-col items-center justify-center p-6 space-y-8">
-        <div class="text-center space-y-4">
-            <div class="flex items-center justify-center gap-2 text-green-500 text-sm font-bold mb-4">
-                <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div> Cloud Sync Active
+    <!-- Mode Selector (Landing) -->
+    <div id="view-selector" class="flex-grow hidden flex-col items-center justify-center p-4 md:p-6 space-y-8 animate-fade-in">
+        <div class="text-center space-y-3">
+            <div id="syncBadge" class="inline-flex items-center justify-center gap-2 bg-slate-800/80 border border-slate-700 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">
+                Checking Sync...
             </div>
-            <h1 class="text-5xl md:text-6xl font-black uppercase tracking-widest neon-text-green">WCSU Auction</h1>
-            <p class="text-green-400 font-bold text-xl uppercase tracking-widest">Campus Football Tournament</p>
-            <p class="text-slate-400 max-w-lg mx-auto text-sm bg-slate-800/50 p-4 rounded-xl border border-slate-700">
-                You can safely close this window or change devices. Data is automatically saved to the cloud.<br><br>
-                Open this app in <strong>two tabs/devices</strong>. Use one as the <strong>Admin Dashboard</strong> and the other as the <strong>Live Screen (16:9)</strong>.
+            <h1 class="text-5xl md:text-7xl font-black uppercase tracking-widest neon-text-green">WCSU Auction</h1>
+            <p class="text-green-400 font-bold text-lg md:text-xl uppercase tracking-widest">Campus Football Tournament</p>
+            <p class="text-slate-400 max-w-lg mx-auto text-sm mt-4 leading-relaxed">
+                Choose your screen mode. Run the <strong>Admin Dashboard</strong> on your control device, and the <strong>Live Screen</strong> on the projector.
             </p>
         </div>
         
         <div class="flex flex-col sm:flex-row gap-6 w-full max-w-3xl">
-            <button onclick="setMode('admin')" class="flex-1 bg-slate-800 hover:bg-slate-700 border border-slate-600 hover:border-blue-500 rounded-2xl p-8 transition-all hover:scale-105 group shadow-xl">
-                <h2 class="text-2xl font-bold text-blue-400 group-hover:text-blue-300">Admin Dashboard</h2>
-                <p class="text-slate-400 mt-2 text-sm">Manage players, teams, and record live bids.</p>
+            <button onclick="setMode('admin')" class="flex-1 bg-slate-800/80 hover:bg-slate-700 border border-blue-500/30 hover:border-blue-500 rounded-3xl p-8 transition-all duration-300 hover:scale-105 group shadow-xl relative overflow-hidden">
+                <div class="absolute -right-10 -top-10 w-32 h-32 bg-blue-500/10 rounded-full blur-2xl group-hover:bg-blue-500/20 transition-all"></div>
+                <h2 class="text-2xl md:text-3xl font-black text-white group-hover:text-blue-400 tracking-wider">Admin<br>Dashboard</h2>
+                <p class="text-slate-400 mt-3 text-sm font-semibold">Manage bids, players & teams</p>
             </button>
 
-            <button onclick="setMode('live')" class="flex-1 bg-slate-800 hover:bg-slate-700 border border-slate-600 hover:border-green-500 rounded-2xl p-8 transition-all hover:scale-105 group shadow-xl">
-                <h2 class="text-2xl font-bold text-green-400 group-hover:text-green-300">Live Screen (16:9)</h2>
-                <p class="text-slate-400 mt-2 text-sm">Present to the audience (Optimized for Projector).</p>
+            <button onclick="setMode('live')" class="flex-1 bg-slate-800/80 hover:bg-slate-700 border border-green-500/30 hover:border-green-500 rounded-3xl p-8 transition-all duration-300 hover:scale-105 group shadow-xl relative overflow-hidden">
+                <div class="absolute -right-10 -top-10 w-32 h-32 bg-green-500/10 rounded-full blur-2xl group-hover:bg-green-500/20 transition-all"></div>
+                <h2 class="text-2xl md:text-3xl font-black text-white group-hover:text-green-400 tracking-wider">Live<br>Screen</h2>
+                <p class="text-slate-400 mt-3 text-sm font-semibold">16:9 Projector View</p>
             </button>
         </div>
-        <button onclick="confirmResetData()" class="text-red-500 hover:text-red-400 text-sm mt-8 underline">Reset Entire Auction Data</button>
+        
+        <button onclick="confirmResetData()" class="text-slate-500 hover:text-red-400 text-xs mt-12 uppercase tracking-widest font-bold transition-colors">Reset Entire Auction Data</button>
     </div>
 
+    <!-- ADMIN DASHBOARD -->
     <div id="admin-view" class="hidden flex-col min-h-screen">
-        <header class="bg-slate-950 border-b border-blue-500/50 p-4 sticky top-0 z-20 flex justify-between items-center shadow-lg">
+        <header class="bg-slate-900 border-b border-blue-500/30 p-3 md:p-4 sticky top-0 z-20 flex justify-between items-center shadow-lg">
             <div class="flex items-center gap-3">
-                <span class="bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded uppercase">Admin</span>
-                <h1 class="text-xl font-bold text-white">WCSU Dashboard</h1>
+                <span class="bg-blue-600 text-white text-[10px] md:text-xs font-black px-2 py-1 rounded uppercase tracking-widest">Admin</span>
+                <h1 class="text-lg md:text-xl font-black text-white tracking-widest uppercase">WCSU <span class="text-blue-500">Panel</span></h1>
             </div>
-            <div class="flex gap-4 items-center">
-                <div id="syncStatusAdmin" class="text-xs text-slate-400 hidden md:block">Synced</div>
-                <button onclick="clearLivePlayer()" class="text-sm bg-red-900/50 text-red-300 border border-red-700 px-4 py-2 rounded-lg hover:bg-red-900">Clear Live Screen</button>
-                <button onclick="setMode('landing')" class="text-sm bg-slate-800 text-slate-300 px-4 py-2 rounded-lg hover:bg-slate-700">Exit</button>
+            <div class="flex gap-3 items-center">
+                <div id="adminSyncDot" class="w-2.5 h-2.5 rounded-full bg-slate-500 hidden md:block"></div>
+                <button onclick="clearLivePlayer()" class="text-xs md:text-sm bg-red-900/40 text-red-400 hover:text-red-300 border border-red-700/50 px-3 py-1.5 md:py-2 rounded-lg font-bold uppercase tracking-wider transition-colors">Clear Live</button>
+                <button onclick="setMode('landing')" class="text-xs md:text-sm bg-slate-800 text-slate-300 px-3 py-1.5 md:py-2 rounded-lg font-bold uppercase tracking-wider hover:bg-slate-700 transition-colors">Exit</button>
             </div>
         </header>
 
-        <main class="flex-grow p-4 lg:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 w-full max-w-[1600px] mx-auto">
-            <!-- Admin Left Panel -->
-            <section class="lg:col-span-5 space-y-6">
+        <main class="flex-grow p-4 lg:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 w-full max-w-[1800px] mx-auto">
+            
+            <!-- Admin Left Panel: Controls -->
+            <section class="lg:col-span-4 space-y-6">
+                
                 <!-- Push to Live Control -->
-                <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6 shadow-xl">
-                    <h2 class="text-xl font-black text-white mb-4 border-b border-slate-700 pb-3">1. Select Player</h2>
+                <div class="bg-slate-800/80 border border-slate-700 rounded-2xl p-5 shadow-xl">
+                    <h2 class="text-sm font-black text-blue-400 mb-4 uppercase tracking-widest flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                        1. Setup Next Player
+                    </h2>
                     <div class="space-y-4">
-                        <input type="text" id="admin_playerName" oninput="updatePlayerBase()" class="w-full bg-slate-950 border border-slate-600 rounded-lg px-4 py-3 text-white text-lg outline-none focus:border-blue-500" placeholder="Player Name...">
-                        <select id="admin_category" onchange="updatePlayerBase()" class="w-full bg-slate-950 border border-slate-600 rounded-lg px-4 py-3 text-white outline-none focus:border-blue-500">
-                            <option value="" disabled selected>Select Category</option>
-                            <option value="A">Category A (Base: 50 CR)</option>
-                            <option value="B">Category B (Base: 30 CR)</option>
-                            <option value="C">Category C (Base: 10 CR)</option>
-                        </select>
-                        <button type="button" onclick="pushPlayerToLive()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl uppercase tracking-widest transition-colors">Push to Live</button>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-400 mb-1.5 uppercase tracking-wider">Player Name</label>
+                            <input type="text" id="admin_playerName" oninput="updatePlayerBase()" class="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white font-bold outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all" placeholder="E.g., Lionel Messi">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-400 mb-1.5 uppercase tracking-wider">Category & Base Price</label>
+                            <select id="admin_category" onchange="updatePlayerBase()" class="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white font-bold outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 appearance-none transition-all">
+                                <option value="" disabled selected>Select Category</option>
+                                <option value="A">Category A (50 CR)</option>
+                                <option value="B">Category B (30 CR)</option>
+                                <option value="C">Category C (10 CR)</option>
+                            </select>
+                        </div>
+                        <button type="button" onclick="pushPlayerToLive()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-3 rounded-xl uppercase tracking-widest transition-all shadow-lg hover:shadow-blue-500/25">Push to Projector</button>
                     </div>
                 </div>
 
-                <!-- Bidding Control -->
-                <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6 shadow-xl relative" id="adminBidPanel">
-                    <div id="adminBidOverlay" class="absolute inset-0 bg-slate-900/80 rounded-2xl z-10 flex items-center justify-center backdrop-blur-sm">
-                        <span class="text-slate-400 font-bold">Push a player to live first</span>
+                <!-- Live Bidding Control -->
+                <div class="bg-slate-800/80 border border-slate-700 rounded-2xl p-5 shadow-xl relative overflow-hidden" id="adminBidPanel">
+                    <div id="adminBidOverlay" class="absolute inset-0 bg-slate-900/90 z-10 flex flex-col items-center justify-center backdrop-blur-sm">
+                        <svg class="w-10 h-10 text-slate-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                        <span class="text-slate-400 font-bold uppercase tracking-widest text-sm text-center px-4">Push a player to live<br>to start bidding</span>
                     </div>
                     
-                    <h2 class="text-xl font-black text-white mb-4 border-b border-slate-700 pb-3">2. Live Bidding</h2>
-                    <div class="space-y-4">
-                        <div class="text-2xl font-black text-green-400 text-center" id="admin_active_player_display">--</div>
-                        
-                        <div class="grid grid-cols-2 gap-2">
-                            <select id="admin_bid_team" class="col-span-2 bg-slate-950 border border-slate-600 rounded-lg px-4 py-3 text-white focus:border-green-500 outline-none">
-                                <!-- Populated dynamically -->
-                            </select>
-                            <input type="number" id="admin_bid_amount" class="bg-slate-950 border border-slate-600 rounded-lg px-4 py-3 text-white font-bold text-xl focus:border-green-500 outline-none" placeholder="Bid CR" min="10">
-                            <button onclick="placeBid()" class="bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded-lg transition-colors">Place Bid</button>
+                    <h2 class="text-sm font-black text-green-400 mb-4 uppercase tracking-widest flex items-center gap-2">
+                        <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div> 2. Live Bidding
+                    </h2>
+                    
+                    <div class="space-y-5">
+                        <div class="bg-slate-900 border border-slate-700 rounded-xl p-4 text-center">
+                            <div class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Currently on Auction</div>
+                            <div class="text-xl font-black text-white truncate" id="admin_active_player_display">--</div>
                         </div>
                         
-                        <div class="pt-4 border-t border-slate-700">
-                            <button onclick="finalizeSale()" class="w-full bg-yellow-600 hover:bg-yellow-500 text-white font-black py-4 rounded-xl uppercase tracking-widest shadow-[0_0_15px_rgba(202,138,4,0.4)] transition-colors">Finalize Sale (Sold!)</button>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-400 mb-1.5 uppercase tracking-wider">Select Bidding Team</label>
+                            <select id="admin_bid_team" class="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white font-bold outline-none focus:border-green-500 appearance-none">
+                                <!-- Populated dynamically -->
+                            </select>
+                        </div>
+
+                        <div class="flex gap-3">
+                            <div class="flex-1 relative">
+                                <label class="block text-xs font-bold text-slate-400 mb-1.5 uppercase tracking-wider">Bid Amount (CR)</label>
+                                <input type="number" id="admin_bid_amount" class="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-green-400 font-black text-xl focus:border-green-500 outline-none" min="10">
+                            </div>
+                            <div class="flex-1 flex items-end">
+                                <button onclick="placeBid()" class="w-full bg-green-600 hover:bg-green-500 text-white font-black py-3.5 rounded-xl uppercase tracking-widest transition-all shadow-lg hover:shadow-green-500/25 h-[52px]">Place Bid</button>
+                            </div>
+                        </div>
+                        
+                        <div class="pt-2">
+                            <button onclick="finalizeSale()" class="w-full bg-yellow-500 hover:bg-yellow-400 text-black font-black py-4 rounded-xl uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(234,179,8,0.3)] transition-all text-lg border-2 border-yellow-400">Sold !</button>
                         </div>
                     </div>
                 </div>
             </section>
 
-            <!-- Admin Teams Overview -->
-            <section class="lg:col-span-7 h-full flex flex-col gap-6 pb-10">
-                <div class="bg-slate-800/50 rounded-2xl p-4 border border-slate-700 overflow-y-auto" style="max-height: 80vh;">
-                    <h3 class="text-xl font-black text-slate-200 mb-4 px-2">All Teams Summary</h3>
-                    <div id="admin_teamsGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+            <!-- Admin Right Panel: Teams Summary -->
+            <section class="lg:col-span-8 h-full flex flex-col overflow-hidden bg-slate-800/30 border border-slate-700 rounded-2xl">
+                <div class="p-4 border-b border-slate-700 bg-slate-800/80">
+                    <h3 class="text-lg font-black text-slate-200 uppercase tracking-widest">All Teams Summary</h3>
+                </div>
+                
+                <div class="flex-grow overflow-y-auto p-4 custom-scrollbar" style="max-height: calc(100vh - 160px);">
+                    <div id="admin_teamsGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Teams injected here -->
+                    </div>
                 </div>
             </section>
         </main>
     </div>
 
+    <!-- LIVE SCREEN (16:9 Projector View) -->
     <div id="live-view" class="hidden screen-wrapper">
         <div class="projector-screen" id="projectorCanvas">
             
-            <header class="h-[12%] border-b-2 border-slate-800 flex justify-between items-center px-10 bg-black/40">
+            <!-- Header -->
+            <header class="h-[10%] border-b border-slate-700/50 flex justify-between items-center px-10 bg-slate-900/60 backdrop-blur-md relative z-10">
                 <div class="flex items-center gap-4">
-                    <div class="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center font-black text-black">WCSU</div>
-                    <h1 class="text-3xl font-black uppercase tracking-[0.2em] text-white">Campus Football</h1>
+                    <div class="w-10 h-10 bg-gradient-to-br from-green-400 to-blue-500 rounded-full flex items-center justify-center shadow-lg">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    </div>
+                    <h1 class="text-2xl font-black uppercase tracking-[0.25em] text-white">WCSU <span class="text-slate-500">AUCTION</span></h1>
                 </div>
-                <div class="flex items-center gap-4">
-                    <div id="syncStatusLive" class="w-3 h-3 bg-green-500 rounded-full shadow-[0_0_8px_rgba(34,197,94,0.8)]"></div>
-                    <div class="text-red-500 font-black tracking-widest text-2xl animate-pulse">LIVE AUCTION</div>
+                <div class="flex items-center gap-4 bg-red-500/10 px-4 py-1.5 rounded-full border border-red-500/30">
+                    <div class="w-3 h-3 bg-red-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.8)]"></div>
+                    <div class="text-red-400 font-black tracking-widest text-sm uppercase">Live Broadcast</div>
                 </div>
             </header>
 
-            <main class="flex-grow flex p-6 gap-6 h-[88%] relative">
-                <!-- Live Left: Player & Winner -->
-                <div class="w-1/2 flex flex-col gap-6 h-full">
-                    <div id="live_player_card" class="h-1/2 bg-slate-900/80 rounded-3xl border border-slate-700 p-8 flex flex-col items-center justify-center relative overflow-hidden">
-                        <div class="text-slate-500 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-2xl font-bold tracking-widest uppercase">Waiting for Player...</div>
+            <main class="flex-grow flex p-8 gap-8 h-[90%] relative z-0">
+                
+                <!-- Live Left: Active Player & Highest Bid -->
+                <div class="w-7/12 flex flex-col gap-8 h-full">
+                    
+                    <!-- Player Card -->
+                    <div id="live_player_card" class="h-1/2 bg-slate-800/40 backdrop-blur rounded-[2rem] border border-slate-700 p-10 flex flex-col justify-center relative overflow-hidden transition-all duration-500">
+                        <!-- Injected -->
                     </div>
 
-                    <div id="live_highest_bidder" class="h-1/2 bg-slate-900/40 rounded-3xl border border-slate-800 p-8 flex flex-col justify-center items-center opacity-0 transition-opacity duration-500">
-                        <div class="text-slate-400 font-bold uppercase tracking-widest mb-2">Current Highest Bidder</div>
-                        <div id="live_hb_team" class="text-5xl font-black text-yellow-400 uppercase tracking-tight text-center leading-tight mb-4 drop-shadow-[0_0_15px_rgba(234,179,8,0.5)]">TEAM NAME</div>
-                        <div id="live_hb_amount" class="text-7xl font-black text-white neon-text-green">0 <span class="text-4xl text-green-500">CR</span></div>
+                    <!-- Highest Bidder -->
+                    <div id="live_highest_bidder" class="h-1/2 bg-slate-800/20 backdrop-blur rounded-[2rem] border border-slate-700 p-10 flex flex-col justify-center items-center opacity-0 transition-opacity duration-500 relative">
+                        <!-- Injected -->
                     </div>
                 </div>
 
-                <!-- Live Right: Bids & Teams Mini-Ticker -->
-                <div class="w-1/2 flex flex-col gap-6 h-full">
-                    <div class="h-3/5 bg-slate-900/80 rounded-3xl border border-slate-700 p-6 flex flex-col">
-                        <h3 class="text-xl font-bold text-slate-400 uppercase tracking-widest mb-4 border-b border-slate-800 pb-2 flex items-center justify-between">
+                <!-- Live Right: Bids Log & Mini Teams -->
+                <div class="w-5/12 flex flex-col gap-8 h-full">
+                    
+                    <!-- Bid History -->
+                    <div class="h-3/5 bg-slate-800/40 backdrop-blur rounded-[2rem] border border-slate-700 p-8 flex flex-col relative overflow-hidden">
+                        <div class="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl"></div>
+                        <h3 class="text-lg font-black text-slate-300 uppercase tracking-widest mb-6 border-b border-slate-700 pb-3 flex items-center justify-between">
                             Bid History
-                            <span class="text-sm bg-blue-500/20 text-blue-400 px-3 py-1 rounded-full border border-blue-500/30">Latest at top</span>
+                            <span class="text-[10px] bg-slate-700 px-2 py-1 rounded text-slate-400">Latest Top</span>
                         </h3>
-                        <div id="live_bid_log" class="flex-grow overflow-hidden flex flex-col gap-3 relative">
-                            <!-- Bids injected here -->
+                        <div id="live_bid_log" class="flex-grow flex flex-col gap-4 relative">
+                            <!-- Injected -->
                         </div>
                     </div>
 
-                    <div class="h-2/5 bg-black/60 rounded-3xl border border-slate-800 p-6 flex flex-col">
-                        <h3 class="text-lg font-bold text-slate-500 uppercase tracking-widest mb-3 border-b border-slate-800 pb-2">Remaining Budgets (CR)</h3>
-                        <div id="live_mini_teams" class="flex-grow grid grid-cols-2 gap-x-6 gap-y-1 overflow-hidden content-start">
+                    <!-- Teams Ticker -->
+                    <div class="h-2/5 bg-slate-900/60 backdrop-blur rounded-[2rem] border border-slate-800 p-6 flex flex-col">
+                        <h3 class="text-sm font-black text-slate-500 uppercase tracking-widest mb-4 border-b border-slate-800 pb-2">Budgets Remaining (CR)</h3>
+                        <div id="live_mini_teams" class="flex-grow grid grid-cols-2 gap-x-8 gap-y-2 content-start">
                             <!-- Injected -->
                         </div>
                     </div>
                 </div>
 
-                <!-- Sold Overlay -->
-                <div id="soldOverlay" class="absolute inset-0 bg-black/90 z-50 hidden flex-col items-center justify-center p-10">
-                    <div class="text-[12rem] font-black text-red-600 uppercase tracking-tighter mb-[-2rem] border-8 border-red-600 px-12 py-2 rounded-3xl transform -rotate-12 shadow-[0_0_50px_rgba(220,38,38,0.6)]">SOLD!</div>
-                    <div class="mt-12 text-center z-10 bg-slate-900 p-10 border-4 border-yellow-500 rounded-3xl shadow-[0_0_40px_rgba(234,179,8,0.3)] animate-pulse">
-                        <div id="sold_player" class="text-5xl font-black text-white mb-4">PLAYER NAME</div>
-                        <div class="text-2xl text-slate-400 mb-2 uppercase tracking-widest">goes to</div>
-                        <div id="sold_team" class="text-6xl font-black text-yellow-400 mb-6 drop-shadow-md">TEAM NAME</div>
-                        <div class="text-4xl text-green-400 font-black">For <span id="sold_amount">0</span> CR</div>
+                <!-- SOLD Splash Screen Overlay -->
+                <div id="soldOverlay" class="absolute inset-0 bg-black/95 z-50 hidden flex-col items-center justify-center backdrop-blur-sm">
+                    <div class="relative z-10 text-center flex flex-col items-center">
+                        <div class="text-[8rem] font-black text-red-600 uppercase tracking-tighter mb-4 border-8 border-red-600 px-12 py-0 rounded-3xl animate-stamp bg-black shadow-[0_0_100px_rgba(220,38,38,0.4)]">SOLD!</div>
+                        
+                        <div class="bg-gradient-to-b from-slate-800 to-slate-900 p-12 rounded-[3rem] border border-slate-700 shadow-2xl mt-8 min-w-[600px] transform scale-0 animate-[stamp_0.5s_0.2s_forwards]">
+                            <div id="sold_player" class="text-5xl font-black text-white mb-6 uppercase tracking-tight">PLAYER NAME</div>
+                            <div class="text-xl text-slate-500 mb-4 font-bold uppercase tracking-[0.3em]">goes to</div>
+                            <div id="sold_team" class="text-6xl font-black text-yellow-400 mb-8 uppercase tracking-tighter neon-text-yellow">TEAM NAME</div>
+                            <div class="inline-block bg-green-500/10 border border-green-500/30 px-8 py-3 rounded-full">
+                                <div class="text-3xl text-green-400 font-black tracking-widest">FOR <span id="sold_amount" class="text-5xl ml-2">0</span> CR</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Confetti-like background effects -->
+                    <div class="absolute inset-0 overflow-hidden pointer-events-none opacity-30">
+                        <div class="absolute top-1/4 left-1/4 w-64 h-64 bg-red-500 rounded-full blur-[100px]"></div>
+                        <div class="absolute bottom-1/4 right-1/4 w-64 h-64 bg-yellow-500 rounded-full blur-[100px]"></div>
                     </div>
                 </div>
-
             </main>
         </div>
     </div>
 
     <script type="module">
+        // --- FIREBASE IMPORTS ---
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // --- CONSTANTS & DEFAULT STATE ---
         const TOTAL_BUDGET = 600;
         const CATEGORIES = { 'A': 50, 'B': 30, 'C': 10 };
         
@@ -259,32 +329,60 @@
             lastUpdate: Date.now()
         };
 
+        // --- GLOBAL VARIABLES ---
         let appState = JSON.parse(JSON.stringify(DEFAULT_STATE));
         let currentMode = 'landing';
         
         // Firebase Setup variables
         let db, auth, docRef;
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-wcsu-auction';
-        let isSaving = false;
+        
+        // This handles the environment injected variables if they exist, 
+        // OR falls back to a placeholder that the user can edit later.
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'wcsu-auction-demo';
+        
+        // IMPORTANT: If running outside the specific immersive environment, replace this object with your actual Firebase config.
+        const fallbackConfig = {
+            apiKey: "REPLACE_WITH_YOUR_API_KEY",
+            authDomain: "REPLACE_WITH_YOUR_AUTH_DOMAIN",
+            projectId: "REPLACE_WITH_YOUR_PROJECT_ID",
+            storageBucket: "REPLACE_WITH_YOUR_STORAGE_BUCKET",
+            messagingSenderId: "REPLACE_WITH_YOUR_SENDER_ID",
+            appId: "REPLACE_WITH_YOUR_APP_ID"
+        };
+        
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : fallbackConfig;
 
-        // Custom Modal Logic
+        let isSaving = false;
+        let isOnline = false;
+
+        // --- CUSTOM MODAL LOGIC (Replaces alert/confirm/prompt) ---
         window.showModal = function(title, message, type = 'info', onConfirm = null) {
             document.getElementById('modalTitle').textContent = title;
             document.getElementById('modalMessage').textContent = message;
             
+            const modalEl = document.getElementById('customModal');
             const inputField = document.getElementById('modalInput');
-            inputField.classList.add('hidden');
-            
             const actions = document.getElementById('modalActions');
+            const headerColor = document.getElementById('modalHeaderColor');
+            
+            inputField.classList.add('hidden');
+            inputField.value = '';
+            
+            // Theme colors based on type
+            if (type === 'error') headerColor.className = "absolute top-0 left-0 right-0 h-1 bg-red-500";
+            else if (type === 'confirm' || type === 'prompt') headerColor.className = "absolute top-0 left-0 right-0 h-1 bg-yellow-500";
+            else headerColor.className = "absolute top-0 left-0 right-0 h-1 bg-blue-500";
+
             if (type === 'confirm' || type === 'prompt') {
                 if (type === 'prompt') {
                     inputField.classList.remove('hidden');
+                    setTimeout(() => inputField.focus(), 100);
                 }
                 actions.innerHTML = `
-                    <button id="modalCancelBtn" class="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-6 rounded-lg">Cancel</button>
-                    <button id="modalConfirmBtn" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-6 rounded-lg">Confirm</button>
+                    <button id="modalCancelBtn" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-3 px-4 rounded-xl transition-colors border border-slate-700">Cancel</button>
+                    <button id="modalConfirmBtn" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-4 rounded-xl transition-colors shadow-lg shadow-blue-500/20">Confirm</button>
                 `;
-                document.getElementById('modalCancelBtn').onclick = () => closeModal();
+                document.getElementById('modalCancelBtn').onclick = () => window.closeModal();
                 document.getElementById('modalConfirmBtn').onclick = () => {
                     if (onConfirm) {
                         if (type === 'prompt') {
@@ -293,25 +391,32 @@
                             onConfirm();
                         }
                     }
-                    closeModal();
+                    window.closeModal();
                 };
             } else {
-                actions.innerHTML = `<button onclick="closeModal()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-6 rounded-lg">OK</button>`;
+                // Info or Error
+                const btnColor = type === 'error' ? 'bg-red-600 hover:bg-red-500 shadow-red-500/20' : 'bg-blue-600 hover:bg-blue-500 shadow-blue-500/20';
+                actions.innerHTML = `<button onclick="closeModal()" class="w-full ${btnColor} text-white font-bold py-3 px-6 rounded-xl transition-colors shadow-lg">OK</button>`;
             }
             
-            document.getElementById('customModal').classList.remove('hidden');
-            document.getElementById('customModal').classList.add('flex');
+            modalEl.classList.remove('hidden');
+            modalEl.classList.add('flex');
         }
 
         window.closeModal = function() {
-            document.getElementById('customModal').classList.add('hidden');
-            document.getElementById('customModal').classList.remove('flex');
+            const modalEl = document.getElementById('customModal');
+            modalEl.classList.add('hidden');
+            modalEl.classList.remove('flex');
         }
 
+        // --- FIREBASE INITIALIZATION ---
         async function initFirebase() {
             try {
-                // Initialize Firebase using environment variable config
-                const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { projectId: "demo-project" };
+                // Basic validation if user is trying to run without replacing config
+                if (firebaseConfig.apiKey === "REPLACE_WITH_YOUR_API_KEY") {
+                    throw new Error("Placeholder config detected.");
+                }
+
                 const app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
@@ -323,7 +428,9 @@
                     await signInAnonymously(auth);
                 }
 
-                // Reference to single shared state document
+                isOnline = true;
+                
+                // Firestore path explicitly following rule: /artifacts/{appId}/public/data/{collectionName}
                 docRef = doc(db, 'artifacts', appId, 'public', 'data', 'wcsuAuction', 'gameState');
                 
                 // Real-time listener
@@ -335,19 +442,37 @@
                             // First time setup
                             updateCloudState(DEFAULT_STATE);
                         }
+                        updateSyncStatus();
                         hideLoader();
                         render();
                     }, 
                     (error) => {
                         console.error("Firebase Sync Error:", error);
-                        showModal("Sync Error", "Failed to sync with cloud. Please refresh.");
+                        isOnline = false;
+                        updateSyncStatus();
+                        showModal("Sync Disconnected", "Failed to sync with cloud. Operating locally.", "error");
+                        hideLoader();
                     }
                 );
             } catch (error) {
                 console.error("Initialization Error:", error);
+                isOnline = false;
+                
+                // Show user-friendly error but allow UI to render locally
                 hideLoader();
-                showModal("Setup Error", "Failed to initialize cloud database. Local mode only (Not synced).");
-                render(); // Fallback to local
+                updateSyncStatus();
+                showModal(
+                    "Cloud Sync Disabled", 
+                    "Firebase is not configured properly or is missing credentials. The app will run in Local Mode (data will not sync across tabs/devices). Replace 'firebaseConfig' in the code to enable syncing.",
+                    "error"
+                );
+                
+                // Attempt to load from localStorage as fallback
+                const localData = localStorage.getItem('wcsu_auction_local');
+                if (localData) {
+                    appState = JSON.parse(localData);
+                }
+                render();
             }
         }
 
@@ -361,39 +486,52 @@
             document.getElementById('view-selector').classList.add('flex');
         }
 
-        // Wrapper to update cloud
+        // --- STATE MANAGEMENT ---
         async function updateCloudState(newState) {
-            if (!docRef) return; // DB not initialized
-            isSaving = true;
-            updateSyncUI();
-            
             newState.lastUpdate = Date.now();
-            try {
-                await setDoc(docRef, newState);
-            } catch(e) {
-                console.error("Save error:", e);
-                showModal("Save Failed", "Could not save to cloud.");
-            } finally {
-                isSaving = false;
-                updateSyncUI();
-            }
-        }
-
-        function updateSyncUI() {
-            const elAdmin = document.getElementById('syncStatusAdmin');
-            const elLive = document.getElementById('syncStatusLive');
-            if (isSaving) {
-                if(elAdmin) { elAdmin.textContent = "Saving..."; elAdmin.classList.add("text-yellow-400"); }
-                if(elLive) { elLive.classList.replace("bg-green-500", "bg-yellow-500"); }
+            appState = newState; // Optimistic local update
+            
+            if (isOnline && docRef) {
+                isSaving = true;
+                updateSyncStatus();
+                try {
+                    await setDoc(docRef, newState);
+                } catch(e) {
+                    console.error("Save error:", e);
+                    showModal("Save Failed", "Could not save to cloud.", "error");
+                } finally {
+                    isSaving = false;
+                    updateSyncStatus();
+                }
             } else {
-                if(elAdmin) { elAdmin.textContent = "Synced"; elAdmin.classList.remove("text-yellow-400"); }
-                if(elLive) { elLive.classList.replace("bg-yellow-500", "bg-green-500"); }
+                // Local fallback save
+                localStorage.setItem('wcsu_auction_local', JSON.stringify(newState));
+                render();
             }
         }
 
-        // Action Handlers
+        function updateSyncStatus() {
+            const adminDot = document.getElementById('adminSyncDot');
+            const badge = document.getElementById('syncBadge');
+            
+            if (!isOnline) {
+                if(adminDot) adminDot.className = "w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]";
+                if(badge) { badge.innerHTML = `<div class="w-2 h-2 bg-red-500 rounded-full"></div> Local Mode Only`; badge.className = "inline-flex items-center justify-center gap-2 bg-red-900/20 border border-red-700/50 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest text-red-400 mb-2"; }
+                return;
+            }
+
+            if (isSaving) {
+                if(adminDot) adminDot.className = "w-2.5 h-2.5 rounded-full bg-yellow-500 animate-pulse";
+                if(badge) badge.innerHTML = `<div class="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></div> Syncing...`;
+            } else {
+                if(adminDot) adminDot.className = "w-2.5 h-2.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)]";
+                if(badge) { badge.innerHTML = `<div class="w-2 h-2 bg-green-500 rounded-full"></div> Cloud Synced`; badge.className = "inline-flex items-center justify-center gap-2 bg-slate-800/80 border border-slate-700 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest text-slate-400 mb-2"; }
+            }
+        }
+
+        // --- ACTION HANDLERS ---
         window.confirmResetData = function() {
-            showModal("Reset Auction Data", "Are you absolutely sure you want to reset all teams to 600CR and erase all players? This cannot be undone.", 'confirm', () => {
+            showModal("Reset Auction Data?", "Are you absolutely sure you want to reset all teams to 600CR and erase all players? This cannot be undone.", 'confirm', () => {
                 updateCloudState(JSON.parse(JSON.stringify(DEFAULT_STATE)));
             });
         }
@@ -414,6 +552,7 @@
             } else if (mode === 'live') {
                 document.getElementById('live-view').classList.remove('hidden');
                 document.getElementById('live-view').classList.add('flex');
+                // Optional: Try fullscreen for projector
                 try { document.documentElement.requestFullscreen(); } catch(e){}
             } else {
                 document.getElementById('view-selector').classList.remove('hidden');
@@ -425,20 +564,22 @@
         window.updatePlayerBase = function() {
             const cat = document.getElementById('admin_category').value;
             if (cat && CATEGORIES[cat]) {
-                document.getElementById('admin_bid_amount').value = CATEGORIES[cat];
+                const base = CATEGORIES[cat];
+                document.getElementById('admin_bid_amount').value = base;
             }
         }
 
         window.pushPlayerToLive = function() {
             const name = document.getElementById('admin_playerName').value.trim();
             const cat = document.getElementById('admin_category').value;
-            if(!name || !cat) return showModal("Input Required", "Please enter a player name and select a category.");
+            if(!name || !cat) return showModal("Input Required", "Please enter a player name and select a category.", "error");
 
             const newState = { ...appState };
             newState.activePlayer = { name, category: cat, baseRate: CATEGORIES[cat] };
             newState.bids = [];
             newState.soldEvent = null;
             
+            document.getElementById('admin_bid_amount').value = CATEGORIES[cat]; // Reset bid amount to base
             updateCloudState(newState);
         }
 
@@ -450,6 +591,7 @@
             
             document.getElementById('admin_playerName').value = '';
             document.getElementById('admin_category').value = '';
+            document.getElementById('admin_bid_amount').value = '';
             
             updateCloudState(newState);
         }
@@ -459,7 +601,7 @@
             if(!select) return;
             select.innerHTML = '<option value="" disabled selected>Select Bidding Team</option>';
             appState.teams.forEach(t => {
-                select.innerHTML += `<option value="${t.id}">${t.name} (Budget: ${t.budget} CR)</option>`;
+                select.innerHTML += `<option value="${t.id}">${t.name} (${t.budget} CR)</option>`;
             });
         }
 
@@ -468,13 +610,13 @@
             const teamId = document.getElementById('admin_bid_team').value;
             const amount = parseInt(document.getElementById('admin_bid_amount').value);
 
-            if(!teamId || isNaN(amount)) return showModal("Input Error", "Please select a team and enter a valid bid amount.");
+            if(!teamId || isNaN(amount)) return showModal("Input Error", "Please select a team and enter a valid bid amount.", "error");
             
             const team = appState.teams.find(t => t.id === teamId);
-            if(amount > team.budget) return showModal("Budget Error", `Insufficient budget. ${team.name} only has ${team.budget} CR.`);
+            if(amount > team.budget) return showModal("Budget Error", `Insufficient budget. ${team.name} only has ${team.budget} CR remaining.`, "error");
             
             const highestBid = appState.bids.length > 0 ? appState.bids[0].amount : (appState.activePlayer.baseRate - 1);
-            if(amount <= highestBid) return showModal("Bid Error", `Bid must be higher than ${highestBid} CR.`);
+            if(amount <= highestBid) return showModal("Bid Error", `Bid must be strictly higher than ${highestBid} CR.`, "error");
 
             const newState = { ...appState };
             newState.bids.unshift({
@@ -485,18 +627,19 @@
                 time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'})
             });
             
-            document.getElementById('admin_bid_amount').value = amount + 1;
+            document.getElementById('admin_bid_amount').value = amount + 1; // Auto increment next bid step
             updateCloudState(newState);
         }
 
         window.finalizeSale = function() {
-            if(!appState.activePlayer || appState.bids.length === 0) return showModal("Cannot Sell", "No bids have been placed for this player.");
+            if(!appState.activePlayer || appState.bids.length === 0) return showModal("Cannot Sell", "No bids have been placed for this player.", "error");
             
             const winningBid = appState.bids[0];
             const newState = { ...appState };
             const teamIndex = newState.teams.findIndex(t => t.id === winningBid.teamId);
             
             if(teamIndex > -1) {
+                // Process transaction
                 newState.teams[teamIndex].budget -= winningBid.amount;
                 newState.teams[teamIndex].players.push({
                     name: newState.activePlayer.name,
@@ -504,6 +647,7 @@
                     cat: newState.activePlayer.category
                 });
 
+                // Trigger splash screen
                 newState.soldEvent = {
                     player: newState.activePlayer.name,
                     team: winningBid.teamName,
@@ -516,9 +660,13 @@
                 
                 updateCloudState(newState);
                 
-                // Clear sold screen locally for admin after timeout
+                // Clear UI inputs
+                document.getElementById('admin_playerName').value = '';
+                document.getElementById('admin_category').value = '';
+                document.getElementById('admin_bid_team').value = '';
+                
+                // Auto-clear the sold overlay after 8 seconds
                 setTimeout(() => {
-                    // Only clear if the sold event hasn't changed
                     if(appState.soldEvent && appState.soldEvent.id === newState.soldEvent.id) {
                         updateCloudState({ ...appState, soldEvent: null });
                     }
@@ -531,7 +679,7 @@
             if(!team || !team.players[pIndex]) return;
             const player = team.players[pIndex];
 
-            showModal("Undo Deal", `Are you sure you want to remove ${player.name} from ${team.name} and refund ${player.price} CR to their budget?`, 'confirm', () => {
+            showModal("Undo Deal", `Remove ${player.name} from ${team.name} and refund ${player.price} CR?`, 'confirm', () => {
                 const newState = { ...appState };
                 const tIndex = newState.teams.findIndex(t => t.id === teamId);
                 newState.teams[tIndex].budget += player.price;
@@ -544,11 +692,10 @@
             const team = appState.teams.find(t => t.id === teamId);
             if(!team) return;
 
-            document.getElementById('modalInput').value = team.budget;
             showModal("Edit Budget", `Enter new total remaining budget (CR) for ${team.name}:`, 'prompt', (newVal) => {
                 const parsedVal = parseInt(newVal);
                 if(isNaN(parsedVal) || parsedVal < 0) {
-                    showModal("Invalid Input", "Please enter a valid positive number for the budget.");
+                    showModal("Invalid Input", "Please enter a valid positive number for the budget.", "error");
                     return;
                 }
                 const newState = { ...appState };
@@ -556,9 +703,11 @@
                 newState.teams[tIndex].budget = parsedVal;
                 updateCloudState(newState);
             });
+            // Pre-fill prompt
+            setTimeout(() => { document.getElementById('modalInput').value = team.budget; }, 50);
         }
 
-        // Render functions
+        // --- RENDER LOGIC ---
         function render() {
             if(currentMode === 'admin') renderAdmin();
             if(currentMode === 'live') renderLive();
@@ -568,7 +717,7 @@
             const overlay = document.getElementById('adminBidOverlay');
             if(appState.activePlayer) {
                 overlay.classList.add('hidden');
-                document.getElementById('admin_active_player_display').innerHTML = `LIVE: ${appState.activePlayer.name} (${appState.activePlayer.category})`;
+                document.getElementById('admin_active_player_display').innerHTML = `<span class="text-slate-400 font-bold">${appState.activePlayer.name}</span> <span class="text-sm bg-blue-600/20 text-blue-400 px-2 py-0.5 rounded ml-2">Cat ${appState.activePlayer.category}</span>`;
                 populateAdminDropdown(); 
             } else {
                 overlay.classList.remove('hidden');
@@ -576,44 +725,64 @@
             }
 
             const grid = document.getElementById('admin_teamsGrid');
-            grid.innerHTML = appState.teams.map(t => `
-                <div class="bg-slate-900 p-4 rounded-xl border border-slate-700 flex flex-col h-64 shadow-lg hover:border-slate-500 transition-colors">
-                    <div class="flex justify-between items-center mb-3 border-b border-slate-800 pb-3 shrink-0">
-                        <h4 class="font-bold text-white text-lg">${t.name} <span class="text-xs text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded uppercase ml-2 border border-slate-700">${t.type}</span></h4>
+            grid.innerHTML = appState.teams.map(t => {
+                const spent = TOTAL_BUDGET - t.budget;
+                const isLow = t.budget <= 50;
+                const budgetColor = isLow ? 'text-red-400' : 'text-green-400';
+                
+                return `
+                <div class="bg-slate-900/80 p-5 rounded-2xl border border-slate-700 flex flex-col h-[320px] shadow-lg hover:border-slate-500 transition-colors relative group">
+                    <div class="flex justify-between items-start mb-4 border-b border-slate-800 pb-4 shrink-0">
+                        <div>
+                            <h4 class="font-black text-white text-xl uppercase tracking-wider">${t.name}</h4>
+                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-800 px-2 py-0.5 rounded border border-slate-700">${t.type}</span>
+                        </div>
                         <div class="text-right flex items-center gap-3">
-                            <div>
-                                <div class="text-[10px] text-slate-500 uppercase tracking-wider mb-0.5 text-right">Budget</div>
-                                <span class="${t.budget < 100 ? 'text-red-400' : 'text-green-400'} font-black text-xl leading-none">${t.budget} CR</span>
+                            <div class="flex flex-col items-end">
+                                <div class="text-[10px] text-slate-500 uppercase tracking-widest mb-0.5">Left / Spent</div>
+                                <div class="flex items-baseline gap-1">
+                                    <span class="${budgetColor} font-black text-2xl leading-none">${t.budget}</span>
+                                    <span class="text-slate-500 font-bold text-sm">/ ${spent}</span>
+                                </div>
                             </div>
-                            <button onclick="editTeamBudget('${t.id}')" class="text-slate-400 hover:text-blue-400 bg-slate-800 p-1.5 rounded border border-slate-700 transition-colors" title="Edit Budget">
+                            <button onclick="editTeamBudget('${t.id}')" class="text-slate-400 hover:text-blue-400 bg-slate-800 p-2 rounded-lg border border-slate-700 transition-colors shadow hover:shadow-blue-500/20" title="Edit Budget">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
                             </button>
                         </div>
                     </div>
-                    <div class="flex-grow overflow-y-auto pr-2 space-y-2" style="scrollbar-width: thin;">
-                        ${t.players.length === 0 ? '<div class="text-sm text-slate-600 italic mt-2">No players purchased yet</div>' : ''}
+                    
+                    <div class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 px-1 flex justify-between">
+                        <span>Roster (${t.players.length})</span>
+                        <span>Price</span>
+                    </div>
+                    
+                    <div class="flex-grow overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                        ${t.players.length === 0 ? '<div class="text-sm text-slate-600 italic mt-4 text-center">No players purchased</div>' : ''}
                         ${t.players.map((p, pIndex) => `
-                            <div class="flex justify-between items-center bg-slate-950 px-3 py-2 rounded-lg border border-slate-800/50 text-sm group">
-                                <span class="text-slate-200 font-semibold truncate pr-2">${p.name} <span class="text-blue-400/80 text-[11px] ml-1 px-1 border border-blue-500/20 rounded bg-blue-500/10">${p.cat}</span></span>
-                                <div class="flex items-center gap-2">
-                                    <span class="text-yellow-500 font-mono font-bold whitespace-nowrap">${p.price} CR</span>
-                                    <button onclick="removePlayer('${t.id}', ${pIndex})" class="text-slate-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-0.5" title="Undo Deal">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            <div class="flex justify-between items-center bg-slate-950 px-3 py-2.5 rounded-xl border border-slate-800/50 text-sm group/item hover:border-slate-600 transition-colors">
+                                <span class="text-slate-200 font-bold truncate pr-2 flex items-center gap-2">
+                                    ${p.name} 
+                                    <span class="text-slate-400 font-black text-[10px] bg-slate-800 w-5 h-5 flex items-center justify-center rounded-full border border-slate-700">${p.cat}</span>
+                                </span>
+                                <div class="flex items-center gap-3">
+                                    <span class="text-yellow-500 font-mono font-black">${p.price} CR</span>
+                                    <button onclick="removePlayer('${t.id}', ${pIndex})" class="text-slate-600 hover:text-red-500 opacity-0 group-hover/item:opacity-100 transition-opacity p-1 bg-slate-800 rounded-md" title="Undo Deal">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                                     </button>
                                 </div>
                             </div>
                         `).join('')}
                     </div>
                 </div>
-            `).join('');
+                `;
+            }).join('');
         }
 
         function renderLive() {
-            const spotlight = document.getElementById('live_player_card');
             const p = appState.activePlayer;
             const soldEvent = appState.soldEvent;
             
-            // Sold Overlay
+            // --- Sold Overlay ---
             const soldScreen = document.getElementById('soldOverlay');
             if(soldEvent) {
                 soldScreen.classList.remove('hidden');
@@ -626,68 +795,79 @@
                 soldScreen.classList.remove('flex');
             }
 
-            // Player Spotlight
+            // --- Player Spotlight ---
+            const spotlight = document.getElementById('live_player_card');
             if(p) {
-                spotlight.className = `h-[45%] bg-slate-900 border-2 border-blue-500/50 rounded-3xl p-8 flex flex-col justify-center relative overflow-hidden shadow-[0_0_30px_rgba(59,130,246,0.15)] transition-all duration-300`;
                 spotlight.innerHTML = `
-                    <div class="absolute top-5 left-8 bg-blue-600/20 text-blue-400 text-sm font-bold uppercase tracking-widest px-4 py-1.5 rounded-full border border-blue-500/30">Category ${p.category}</div>
-                    <div class="absolute top-5 right-8 text-slate-400 text-lg font-bold uppercase tracking-widest bg-slate-800/50 px-4 py-1 rounded-full border border-slate-700/50">Base: ${p.baseRate} CR</div>
-                    <h2 class="text-5xl lg:text-7xl font-black text-white text-center w-full truncate leading-tight mt-6 uppercase tracking-tighter">${p.name}</h2>
+                    <div class="absolute top-8 left-10 bg-blue-500/20 text-blue-400 text-lg font-black uppercase tracking-widest px-6 py-2 rounded-full border border-blue-500/30">Category ${p.category}</div>
+                    <div class="absolute top-8 right-10 text-slate-400 text-lg font-black uppercase tracking-widest bg-slate-800/80 px-6 py-2 rounded-full border border-slate-700">Base: ${p.baseRate} CR</div>
+                    <h2 class="text-5xl lg:text-7xl 2xl:text-8xl font-black text-white text-center w-full truncate leading-tight mt-10 uppercase tracking-tighter drop-shadow-xl">${p.name}</h2>
                 `;
+                spotlight.classList.replace('border-slate-700', 'border-blue-500/50');
+                spotlight.classList.add('shadow-[0_0_40px_rgba(59,130,246,0.15)]');
             } else {
-                spotlight.className = `h-1/2 bg-slate-900/40 rounded-3xl border border-slate-800 border-dashed p-8 flex flex-col items-center justify-center relative transition-all duration-300`;
-                spotlight.innerHTML = `<div class="text-slate-600 text-3xl font-bold tracking-widest uppercase animate-pulse">Waiting for Player...</div>`;
+                spotlight.innerHTML = `<div class="text-slate-600 text-4xl font-black tracking-[0.2em] uppercase animate-pulse">Waiting for Player...</div>`;
+                spotlight.classList.replace('border-blue-500/50', 'border-slate-700');
+                spotlight.classList.remove('shadow-[0_0_40px_rgba(59,130,246,0.15)]');
             }
 
-            // Highest Bidder & Bid Log
+            // --- Highest Bidder ---
             const hbBox = document.getElementById('live_highest_bidder');
-            const logBox = document.getElementById('live_bid_log');
-            
             if (appState.bids.length > 0) {
                 const hb = appState.bids[0];
                 hbBox.classList.remove('opacity-0');
                 hbBox.classList.add('winning-bidder-highlight');
-                document.getElementById('live_hb_team').textContent = hb.teamName;
-                document.getElementById('live_hb_amount').innerHTML = `${hb.amount} <span class="text-4xl text-green-500">CR</span>`;
+                hbBox.innerHTML = `
+                    <div class="absolute -top-4 bg-yellow-500 text-black text-sm font-black uppercase tracking-widest px-4 py-1 rounded-full shadow-lg shadow-yellow-500/30">Current Highest</div>
+                    <div class="text-5xl lg:text-6xl font-black text-yellow-400 uppercase tracking-tight text-center leading-tight mb-4 drop-shadow-lg neon-text-yellow">${hb.teamName}</div>
+                    <div class="text-7xl lg:text-8xl font-black text-white neon-text-green">${hb.amount} <span class="text-5xl text-green-500">CR</span></div>
+                `;
             } else {
                 hbBox.classList.add('opacity-0');
                 hbBox.classList.remove('winning-bidder-highlight');
             }
 
-            // Render Log (Fading old bids)
+            // --- Bid Log (Fading) ---
+            const logBox = document.getElementById('live_bid_log');
             logBox.innerHTML = appState.bids.slice(0, 5).map((bid, index) => {
-                const opacity = 1 - (index * 0.22); 
+                // Calculate opacity: 1.0, 0.75, 0.5, 0.25, etc.
+                const opacity = Math.max(1 - (index * 0.25), 0.15); 
+                const scale = 1 - (index * 0.03);
                 const isLatest = index === 0;
-                const bg = isLatest ? 'bg-slate-800/90 border-green-500/50' : 'bg-slate-800/20 border-slate-700/30';
-                const text = isLatest ? 'text-white' : 'text-slate-400';
-                const anim = isLatest ? 'bid-item-new' : '';
+                
+                const bgClass = isLatest ? 'bg-slate-800/90 border-green-500/50 shadow-[0_0_15px_rgba(34,197,94,0.1)]' : 'bg-slate-800/30 border-slate-700/30';
+                const textClass = isLatest ? 'text-white' : 'text-slate-400';
+                const valClass = isLatest ? 'text-green-400' : 'text-slate-500';
+                const animClass = isLatest ? 'animate-fade-in' : '';
                 
                 return `
-                    <div class="flex justify-between items-center px-5 py-3 rounded-xl border ${bg} ${anim}" style="opacity: ${Math.max(opacity, 0.15)}; transform: scale(${1 - index * 0.02})">
-                        <div class="flex items-center gap-5">
-                            <span class="text-xs font-mono text-slate-500 bg-black/40 px-2 py-1 rounded">${bid.time}</span>
-                            <span class="font-bold text-xl md:text-2xl ${text} uppercase tracking-wider">${bid.teamName}</span>
+                    <div class="flex justify-between items-center px-6 py-4 rounded-2xl border ${bgClass} ${animClass} transition-all" style="opacity: ${opacity}; transform: scale(${scale}); transform-origin: top;">
+                        <div class="flex items-center gap-6">
+                            <span class="text-sm font-mono text-slate-500 bg-black/50 px-3 py-1 rounded-lg">${bid.time}</span>
+                            <span class="font-black text-2xl md:text-3xl ${textClass} uppercase tracking-widest">${bid.teamName}</span>
                         </div>
-                        <span class="font-black text-2xl md:text-3xl ${isLatest ? 'text-green-400' : 'text-slate-500'}">${bid.amount} CR</span>
+                        <span class="font-black text-3xl md:text-4xl ${valClass}">${bid.amount} CR</span>
                     </div>
                 `;
             }).join('');
 
-            // Mini Teams Ticker
+            // --- Mini Teams Ticker ---
             const teamsGrid = document.getElementById('live_mini_teams');
             teamsGrid.innerHTML = appState.teams.map(t => {
                 const warnClass = t.budget <= 50 ? 'text-red-400' : 'text-green-400';
                 return `
-                <div class="flex justify-between items-center border-b border-slate-800/80 py-1.5 px-2 hover:bg-slate-800/30 rounded transition-colors">
-                    <span class="text-slate-300 font-bold uppercase tracking-wider text-sm truncate pr-2 w-2/3">${t.name}</span>
-                    <span class="font-black ${warnClass} text-lg">${t.budget}</span>
+                <div class="flex justify-between items-center border-b border-slate-800/80 py-2.5 px-3 hover:bg-slate-800/40 rounded-lg transition-colors">
+                    <span class="text-slate-300 font-bold uppercase tracking-wider text-sm lg:text-base truncate pr-2">${t.name}</span>
+                    <span class="font-black ${warnClass} text-xl lg:text-2xl">${t.budget}</span>
                 </div>
                 `;
             }).join('');
         }
 
-        // Initialize Application
-        initFirebase();
+        // --- INIT ---
+        document.addEventListener('DOMContentLoaded', () => {
+            initFirebase();
+        });
 
     </script>
 </body>
