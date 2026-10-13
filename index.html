@@ -61,6 +61,7 @@
         <div class="bg-slate-900 border-2 border-slate-700 rounded-2xl max-w-sm w-full p-6 text-center shadow-2xl">
             <h3 id="modalTitle" class="text-xl font-bold text-white mb-2">Notification</h3>
             <p id="modalMessage" class="text-slate-400 mb-6"></p>
+            <input type="number" id="modalInput" class="hidden w-full bg-slate-950 border border-slate-600 rounded-lg px-4 py-3 text-white font-bold mb-6 focus:border-blue-500 outline-none text-center" placeholder="Enter amount...">
             <div class="flex gap-4 justify-center" id="modalActions">
                 <button onclick="closeModal()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-6 rounded-lg">OK</button>
             </div>
@@ -267,19 +268,31 @@
         let isSaving = false;
 
         // Custom Modal Logic
-        window.showModal = function(title, message, isConfirm = false, onConfirm = null) {
+        window.showModal = function(title, message, type = 'info', onConfirm = null) {
             document.getElementById('modalTitle').textContent = title;
             document.getElementById('modalMessage').textContent = message;
             
+            const inputField = document.getElementById('modalInput');
+            inputField.classList.add('hidden');
+            
             const actions = document.getElementById('modalActions');
-            if (isConfirm) {
+            if (type === 'confirm' || type === 'prompt') {
+                if (type === 'prompt') {
+                    inputField.classList.remove('hidden');
+                }
                 actions.innerHTML = `
                     <button id="modalCancelBtn" class="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-6 rounded-lg">Cancel</button>
-                    <button id="modalConfirmBtn" class="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-6 rounded-lg">Reset</button>
+                    <button id="modalConfirmBtn" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-6 rounded-lg">Confirm</button>
                 `;
                 document.getElementById('modalCancelBtn').onclick = () => closeModal();
                 document.getElementById('modalConfirmBtn').onclick = () => {
-                    if (onConfirm) onConfirm();
+                    if (onConfirm) {
+                        if (type === 'prompt') {
+                            onConfirm(inputField.value);
+                        } else {
+                            onConfirm();
+                        }
+                    }
                     closeModal();
                 };
             } else {
@@ -380,7 +393,7 @@
 
         // Action Handlers
         window.confirmResetData = function() {
-            showModal("Reset Auction Data", "Are you absolutely sure you want to reset all teams to 600CR and erase all players? This cannot be undone.", true, () => {
+            showModal("Reset Auction Data", "Are you absolutely sure you want to reset all teams to 600CR and erase all players? This cannot be undone.", 'confirm', () => {
                 updateCloudState(JSON.parse(JSON.stringify(DEFAULT_STATE)));
             });
         }
@@ -513,6 +526,38 @@
             }
         }
 
+        window.removePlayer = function(teamId, pIndex) {
+            const team = appState.teams.find(t => t.id === teamId);
+            if(!team || !team.players[pIndex]) return;
+            const player = team.players[pIndex];
+
+            showModal("Undo Deal", `Are you sure you want to remove ${player.name} from ${team.name} and refund ${player.price} CR to their budget?`, 'confirm', () => {
+                const newState = { ...appState };
+                const tIndex = newState.teams.findIndex(t => t.id === teamId);
+                newState.teams[tIndex].budget += player.price;
+                newState.teams[tIndex].players.splice(pIndex, 1);
+                updateCloudState(newState);
+            });
+        }
+
+        window.editTeamBudget = function(teamId) {
+            const team = appState.teams.find(t => t.id === teamId);
+            if(!team) return;
+
+            document.getElementById('modalInput').value = team.budget;
+            showModal("Edit Budget", `Enter new total remaining budget (CR) for ${team.name}:`, 'prompt', (newVal) => {
+                const parsedVal = parseInt(newVal);
+                if(isNaN(parsedVal) || parsedVal < 0) {
+                    showModal("Invalid Input", "Please enter a valid positive number for the budget.");
+                    return;
+                }
+                const newState = { ...appState };
+                const tIndex = newState.teams.findIndex(t => t.id === teamId);
+                newState.teams[tIndex].budget = parsedVal;
+                updateCloudState(newState);
+            });
+        }
+
         // Render functions
         function render() {
             if(currentMode === 'admin') renderAdmin();
@@ -535,17 +580,27 @@
                 <div class="bg-slate-900 p-4 rounded-xl border border-slate-700 flex flex-col h-64 shadow-lg hover:border-slate-500 transition-colors">
                     <div class="flex justify-between items-center mb-3 border-b border-slate-800 pb-3 shrink-0">
                         <h4 class="font-bold text-white text-lg">${t.name} <span class="text-xs text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded uppercase ml-2 border border-slate-700">${t.type}</span></h4>
-                        <div class="text-right">
-                            <div class="text-[10px] text-slate-500 uppercase tracking-wider mb-0.5">Remaining Budget</div>
-                            <span class="${t.budget < 100 ? 'text-red-400' : 'text-green-400'} font-black text-xl leading-none">${t.budget} CR</span>
+                        <div class="text-right flex items-center gap-3">
+                            <div>
+                                <div class="text-[10px] text-slate-500 uppercase tracking-wider mb-0.5 text-right">Budget</div>
+                                <span class="${t.budget < 100 ? 'text-red-400' : 'text-green-400'} font-black text-xl leading-none">${t.budget} CR</span>
+                            </div>
+                            <button onclick="editTeamBudget('${t.id}')" class="text-slate-400 hover:text-blue-400 bg-slate-800 p-1.5 rounded border border-slate-700 transition-colors" title="Edit Budget">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                            </button>
                         </div>
                     </div>
                     <div class="flex-grow overflow-y-auto pr-2 space-y-2" style="scrollbar-width: thin;">
                         ${t.players.length === 0 ? '<div class="text-sm text-slate-600 italic mt-2">No players purchased yet</div>' : ''}
-                        ${t.players.map(p => `
-                            <div class="flex justify-between items-center bg-slate-950 px-3 py-2 rounded-lg border border-slate-800/50 text-sm">
+                        ${t.players.map((p, pIndex) => `
+                            <div class="flex justify-between items-center bg-slate-950 px-3 py-2 rounded-lg border border-slate-800/50 text-sm group">
                                 <span class="text-slate-200 font-semibold truncate pr-2">${p.name} <span class="text-blue-400/80 text-[11px] ml-1 px-1 border border-blue-500/20 rounded bg-blue-500/10">${p.cat}</span></span>
-                                <span class="text-yellow-500 font-mono font-bold whitespace-nowrap">${p.price} CR</span>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-yellow-500 font-mono font-bold whitespace-nowrap">${p.price} CR</span>
+                                    <button onclick="removePlayer('${t.id}', ${pIndex})" class="text-slate-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-0.5" title="Undo Deal">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                    </button>
+                                </div>
                             </div>
                         `).join('')}
                     </div>
